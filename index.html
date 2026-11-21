@@ -50,7 +50,7 @@ form.addEventListener('submit',async event=>{event.preventDefault();errorBox.hid
 const ADDRESS_API='https://eth-sepolia.blockscout.com/api/v2/addresses/';
 const addressForm=document.querySelector('#address-form'),addressInput=document.querySelector('#address-input'),addressButton=document.querySelector('#address-submit'),addressError=document.querySelector('#address-error'),addressLoading=document.querySelector('#address-loading'),addressResult=document.querySelector('#address-result'),addressTxList=document.querySelector('#address-transactions');
 const ADDRESS_RE=/^0x[0-9a-fA-F]{40}$/;
-let tokenTransferAddress='',tokenTransferItems=[],tokenTransferNext=null,tokenTransferFilter='all',tokenTransferVisible=5,tokenTransferLoading=false;
+let tokenTransferAddress='',tokenTransferItems=[],tokenTransferNext=null,tokenTransferFilter='all',tokenTransferVisible=5,tokenTransferLoading=false,tokenTransferLoadError='';
 const tokenFilterButtons=[...document.querySelectorAll('[data-token-filter]')],tokenLoadMore=document.querySelector('#token-load-more'),tokenListStatus=document.querySelector('#token-list-status'),tokenList=document.querySelector('#address-token-transfers');
 function tokenAmount(item){
  const raw=item.total&&item.total.value,decimalValue=(item.total&&item.total.decimals)??(item.token&&item.token.decimals);
@@ -75,16 +75,16 @@ function renderTokenTransferList(){
  const visible=filtered.slice(0,tokenTransferVisible);
  if(visible.length)tokenList.append(...visible.map(item=>appendTokenTransfer(item,tokenTransferAddress)));
  else{const empty=document.createElement('p');empty.className='hint';empty.textContent=tokenTransferFilter==='all'?'Переводы ERC-20 не найдены.':'Для этого фильтра переводы не найдены.';tokenList.append(empty)}
- tokenListStatus.textContent='Показано '+visible.length+' из '+filtered.length+' загруженных переводов'+(tokenTransferNext?' · есть следующая страница':'');
+ tokenListStatus.textContent=tokenTransferLoadError||('Показано '+visible.length+' из '+filtered.length+' загруженных переводов'+(tokenTransferNext?' · есть следующая страница':''));
  tokenLoadMore.hidden=!tokenTransferNext;tokenLoadMore.disabled=tokenTransferLoading
 }
 async function loadMoreTokenTransfers(){
  if(!tokenTransferNext||tokenTransferLoading)return;
- tokenTransferLoading=true;tokenLoadMore.disabled=true;tokenLoadMore.textContent='Загружаем…';
+ tokenTransferLoading=true;tokenTransferLoadError='';tokenLoadMore.disabled=true;tokenLoadMore.textContent='Загружаем…';
  const params=new URLSearchParams();for(const [key,value] of Object.entries(tokenTransferNext))if(value!==null&&value!==undefined)params.set(key,String(value));
  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),15000);
- try{const response=await fetch(ADDRESS_API+encodeURIComponent(tokenTransferAddress)+'/token-transfers?'+params.toString(),{headers:{Accept:'application/json'},signal:controller.signal});if(response.status===429)throw Error('rate-limit');if(!response.ok)throw Error('service');const data=await response.json();if(!Array.isArray(data.items))throw Error('incomplete');tokenTransferItems.push(...data.items.filter(item=>item&&typeof item.transaction_hash==='string'));tokenTransferNext=data.next_page_params||null;tokenTransferVisible+=5;renderTokenTransferList()}
- catch(err){tokenListStatus.textContent=err.name==='AbortError'?'Запрос выполняется слишком долго. Нажмите «Показать ещё» для повтора.':err.message==='rate-limit'?'Blockscout ограничил частоту запросов. Попробуйте ещё раз чуть позже.':'Не удалось загрузить следующую страницу переводов. Нажмите для повтора.';tokenLoadMore.hidden=false}
+ try{const response=await fetch(ADDRESS_API+encodeURIComponent(tokenTransferAddress)+'/token-transfers?'+params.toString(),{headers:{Accept:'application/json'},signal:controller.signal});if(response.status===429)throw Error('rate-limit');if(!response.ok)throw Error('service');const data=await response.json();if(!Array.isArray(data.items))throw Error('incomplete');tokenTransferItems.push(...data.items.filter(item=>item&&typeof item.transaction_hash==='string'));tokenTransferLoadError='';tokenTransferNext=data.next_page_params||null;tokenTransferVisible+=5;renderTokenTransferList()}
+ catch(err){tokenTransferLoadError=err.name==='AbortError'?'Запрос выполняется слишком долго. Нажмите «Показать ещё» для повтора.':err.message==='rate-limit'?'Blockscout ограничил частоту запросов. Попробуйте ещё раз чуть позже.':'Не удалось загрузить следующую страницу переводов. Нажмите для повтора.';tokenLoadMore.hidden=false}
  finally{clearTimeout(timeout);tokenTransferLoading=false;tokenLoadMore.disabled=false;tokenLoadMore.textContent='Показать ещё переводы';renderTokenTransferList()}
 }
 tokenFilterButtons.forEach(button=>button.addEventListener('click',()=>{tokenTransferFilter=button.dataset.tokenFilter;tokenTransferVisible=5;tokenFilterButtons.forEach(item=>item.setAttribute('aria-pressed',String(item===button)));renderTokenTransferList()}));
@@ -116,7 +116,7 @@ addressForm.addEventListener('submit',async event=>{
   const recent=activity.items.filter(tx=>tx&&typeof tx.hash==='string').slice(0,5);
   if(recent.length)addressTxList.append(...recent.map(appendAddressTx));
   else{const empty=document.createElement('p');empty.className='hint';empty.textContent='Недавние транзакции не найдены.';addressTxList.append(empty)}
-  tokenTransferAddress=address;tokenTransferItems=tokenActivity.items.filter(item=>item&&typeof item.transaction_hash==='string');tokenTransferNext=tokenActivity.next_page_params||null;tokenTransferFilter='all';tokenTransferVisible=5;tokenFilterButtons.forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.tokenFilter==='all')));renderTokenTransferList()
+  tokenTransferAddress=address;tokenTransferItems=tokenActivity.items.filter(item=>item&&typeof item.transaction_hash==='string');tokenTransferNext=tokenActivity.next_page_params||null;tokenTransferFilter='all';tokenTransferVisible=5;tokenTransferLoadError='';tokenFilterButtons.forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.tokenFilter==='all')));renderTokenTransferList()
   document.querySelector('#address-explorer').href='https://eth-sepolia.blockscout.com/address/'+encodeURIComponent(address);
   addressResult.hidden=false;
  }catch(err){
