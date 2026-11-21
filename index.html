@@ -129,7 +129,7 @@ function renderTokenTransferList(){
  if(visible.length)tokenList.append(...visible.map(item=>appendTokenTransfer(item,tokenTransferAddress)));
  else{const empty=document.createElement('p');empty.className='hint';empty.textContent=tokenTransferFilter==='all'?'Переводы ERC-20 не найдены.':'Для этого фильтра переводы не найдены.';tokenList.append(empty)}
  tokenListStatus.textContent=tokenTransferLoadError||('Показано '+visible.length+' из '+filtered.length+' загруженных переводов'+(tokenTransferNext?' · есть следующая страница':''));
- tokenLoadMore.hidden=!tokenTransferNext;tokenLoadMore.disabled=tokenTransferLoading
+ tokenLoadMore.hidden=!tokenTransferNext;tokenLoadMore.disabled=tokenTransferLoading;tokenExport.disabled=filtered.length===0
 }
 async function loadMoreTokenTransfers(){
  if(!tokenTransferNext||tokenTransferLoading)return;
