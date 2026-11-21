@@ -15,7 +15,7 @@
 
 ## Источники данных
 
-- [Blockscout API documentation](https://docs.blockscout.com/devs/apis) for the Sepolia instance — транзакции, адреса, балансы и события токенов.
+- [Документация API Blockscout](https://docs.blockscout.com/devs/apis) и экземпляр Sepolia — транзакции, адреса, балансы и события токенов.
 - [Kraken ticker API](https://docs.kraken.com/api-reference/market-data/get-ticker-information/) и [OHLC API](https://docs.kraken.com/api-reference/market-data/get-ohlc-data/) — котировки и часовые рыночные свечи.
 
 Сайт обращается к публичным API из браузера. Источники могут временно ограничивать частоту запросов или быть недоступны.
