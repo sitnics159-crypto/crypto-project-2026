@@ -25,6 +25,8 @@
 </dl>
 <h3 style="font-size:14px;margin:18px 0 0">Последние транзакции</h3>
 <div id="address-transactions" class="tx-list"></div>
+<p id="address-tx-status" class="token-list-status" aria-live="polite"></p>
+<button id="address-tx-load-more" class="load-more" type="button" hidden>Показать ещё транзакции</button>
 <h3 style="font-size:14px;margin:20px 0 0">Недавние переводы токенов (ERC-20)</h3>
 <div class="token-controls" role="group" aria-label="Фильтр переводов токенов">
 <button class="filter-button" type="button" data-token-filter="all" aria-pressed="true">Все</button>
@@ -127,8 +129,10 @@ function render(tx,hash){renderTokenTransfers(tx);const s=statusOf(tx);put('#r-h
 form.addEventListener('submit',async event=>{event.preventDefault();errorBox.hidden=true;result.hidden=true;const hash=input.value.trim();if(!hash){errorBox.textContent='Введите хеш транзакции.';errorBox.hidden=false;input.focus();return}if(!HASH_RE.test(hash)){errorBox.textContent='Проверьте формат: хеш должен начинаться с 0x и содержать 64 шестнадцатеричных символа.';errorBox.hidden=false;input.focus();return}setShareableLookup('tx',hash);button.disabled=true;loading.hidden=false;const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),15000);try{const response=await fetch(API+encodeURIComponent(hash),{headers:{Accept:'application/json'},signal:controller.signal});if(response.status===404)throw Error('not-found');if(response.status===429)throw Error('rate-limit');if(!response.ok)throw Error('service');const data=await response.json();if(!data||typeof data!=='object'||!data.hash)throw Error('incomplete');render(data,hash)}catch(err){if(err.name==='AbortError')errorBox.textContent='Источник данных отвечает слишком долго. Попробуйте повторить запрос.';else if(err.message==='not-found')errorBox.textContent='Транзакция с таким хешем не найдена в Sepolia. Проверьте хеш или повторите поиск позже.';else if(err.message==='rate-limit')errorBox.textContent='Слишком много запросов к источнику данных. Подождите немного и повторите.';else if(err.message==='incomplete')errorBox.textContent='Источник вернул неполные данные. Попробуйте повторить запрос позже.';else errorBox.textContent='Не удалось связаться с источником данных. Проверьте соединение и повторите запрос.';errorBox.hidden=false}finally{clearTimeout(timeout);button.disabled=false;loading.hidden=true}});
 
 const ADDRESS_API='https://eth-sepolia.blockscout.com/api/v2/addresses/';
-const addressForm=document.querySelector('#address-form'),addressInput=document.querySelector('#address-input'),addressButton=document.querySelector('#address-submit'),addressError=document.querySelector('#address-error'),addressLoading=document.querySelector('#address-loading'),addressResult=document.querySelector('#address-result'),addressTxList=document.querySelector('#address-transactions');
+const addressForm=document.querySelector('#address-form'),addressInput=document.querySelector('#address-input'),addressButton=document.querySelector('#address-submit'),addressError=document.querySelector('#address-error'),addressLoading=document.querySelector('#address-loading'),addressResult=document.querySelector('#address-result'),addressTxList=document.querySelector('#address-transactions'),addressTxStatus=document.querySelector('#address-tx-status'),addressTxLoadMore=document.querySelector('#address-tx-load-more');
 const ADDRESS_RE=/^0x[0-9a-fA-F]{40}$/;
+let addressTxItems=[],addressTxNext=null,addressTxVisible=5,addressTxLoading=false,addressTxLoadError='';
+let addressTxCurrent='';
 let tokenTransferAddress='',tokenTransferItems=[],tokenTransferNext=null,tokenTransferFilter='all',tokenTransferVisible=5,tokenTransferLoading=false,tokenTransferLoadError='';
 const tokenFilterButtons=[...document.querySelectorAll('[data-token-filter]')],tokenLoadMore=document.querySelector('#token-load-more'),tokenListStatus=document.querySelector('#token-list-status'),tokenList=document.querySelector('#address-token-transfers'),tokenExport=document.querySelector('#token-export'),tokenExportStatus=document.querySelector('#token-export-status');
 function tokenAmount(item){
@@ -191,14 +195,41 @@ function appendAddressTx(tx){
  if(flagged.length){const warning=document.createElement('span');warning.className='tx-scam-note';warning.textContent='Blockscout помечает '+flagged.join(' и ')+' этой транзакции как потенциально мошеннический адрес. Метка источника не является доказательством.';row.append(warning)}
  return row
 }
+function renderAddressTxList(){
+ addressTxList.replaceChildren();
+ const visible=addressTxItems.slice(0,addressTxVisible);
+ if(visible.length)addressTxList.append(...visible.map(appendAddressTx));
+ else{const empty=document.createElement('p');empty.className='hint';empty.textContent='Недавние транзакции не найдены.';addressTxList.append(empty)}
+ addressTxStatus.textContent=addressTxLoadError||('Показано '+visible.length+' из '+addressTxItems.length+' загруженных транзакций'+(addressTxNext?' · доступна следующая страница':''));
+ addressTxLoadMore.hidden=addressTxVisible>=addressTxItems.length&&!addressTxNext;
+ addressTxLoadMore.disabled=addressTxLoading;
+}
+async function loadMoreAddressTx(){
+ if(addressTxLoading)return;
+ addressTxLoadError='';
+ if(addressTxVisible<addressTxItems.length){addressTxVisible=Math.min(addressTxVisible+5,addressTxItems.length);renderAddressTxList();return}
+ if(!addressTxNext)return;
+ addressTxLoading=true;addressTxLoadMore.disabled=true;addressTxLoadMore.textContent='Загружаем…';addressTxStatus.textContent='Загружаем следующую страницу…';
+ const params=new URLSearchParams();for(const [key,value] of Object.entries(addressTxNext))if(value!==null&&value!==undefined)params.set(key,String(value));
+ const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),15000);
+ try{
+  const response=await fetch(ADDRESS_API+encodeURIComponent(addressTxCurrent)+'/transactions?'+params.toString(),{headers:{Accept:'application/json'},signal:controller.signal});
+  if(response.status===429)throw Error('rate-limit');if(!response.ok)throw Error('service');
+  const data=await response.json();if(!Array.isArray(data.items))throw Error('incomplete');
+  const seen=new Set(addressTxItems.map(tx=>tx.hash));for(const tx of data.items)if(tx&&typeof tx.hash==='string'&&!seen.has(tx.hash)){addressTxItems.push(tx);seen.add(tx.hash)}
+  addressTxNext=data.next_page_params||null;addressTxVisible=Math.min(addressTxVisible+5,addressTxItems.length);addressTxLoadError='';
+ }catch(err){addressTxLoadError=err.name==='AbortError'?'Запрос выполняется слишком долго. Нажмите «Показать ещё транзакции» для повтора.':err.message==='rate-limit'?'Blockscout ограничил частоту запросов. Попробуйте ещё раз чуть позже.':'Не удалось загрузить следующую страницу. Нажмите для повтора.'}
+ finally{clearTimeout(timeout);addressTxLoading=false;addressTxLoadMore.textContent='Показать ещё транзакции';renderAddressTxList()}
+}
+addressTxLoadMore.addEventListener('click',loadMoreAddressTx);
 addressForm.addEventListener('submit',async event=>{
- event.preventDefault();addressError.hidden=true;addressResult.hidden=true;addressTxList.replaceChildren();
+ event.preventDefault();addressError.hidden=true;addressResult.hidden=true;addressTxList.replaceChildren();addressTxItems=[];addressTxNext=null;addressTxVisible=5;addressTxLoadError='';addressTxCurrent='';
  const address=addressInput.value.trim();
  if(!ADDRESS_RE.test(address)){addressError.textContent='Введите адрес Sepolia: 0x и 40 шестнадцатеричных символов.';addressError.hidden=false;addressInput.focus();return}
  setShareableLookup('address',address);addressButton.disabled=true;addressLoading.hidden=false;
  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),15000);
  try{
-  const base=ADDRESS_API+encodeURIComponent(address);
+  const base=ADDRESS_API+encodeURIComponent(address);addressTxCurrent=address;
   const responses=await Promise.all([fetch(base,{headers:{Accept:'application/json'},signal:controller.signal}),fetch(base+'/transactions',{headers:{Accept:'application/json'},signal:controller.signal}),fetch(base+'/token-transfers',{headers:{Accept:'application/json'},signal:controller.signal})]);
   if(responses.some(r=>r.status===404))throw Error('not-found');
   if(responses.some(r=>r.status===429))throw Error('rate-limit');
@@ -207,9 +238,7 @@ addressForm.addEventListener('submit',async event=>{
   if(!info||!info.hash||!Array.isArray(activity.items)||!Array.isArray(tokenActivity.items))throw Error('incomplete');
   put('#a-hash',info.hash);put('#a-balance',weiToEth(info.coin_balance));put('#a-type',info.is_contract?'Смарт-контракт':'Обычный адрес');put('#a-scam-label',info.is_scam===true?'Blockscout помечает как потенциально мошеннический':'Метка Blockscout scam не показана; это не подтверждает безопасность адреса');
   const flags=[];if(info.has_tokens)flags.push('есть токены');if(info.has_token_transfers)flags.push('есть переводы токенов');put('#a-tokens',flags.length?flags.join(' · '):'не обнаружены обозревателем');
-  const recent=activity.items.filter(tx=>tx&&typeof tx.hash==='string').slice(0,5);
-  if(recent.length)addressTxList.append(...recent.map(appendAddressTx));
-  else{const empty=document.createElement('p');empty.className='hint';empty.textContent='Недавние транзакции не найдены.';addressTxList.append(empty)}
+  addressTxItems=activity.items.filter(tx=>tx&&typeof tx.hash==='string');addressTxNext=activity.next_page_params||null;addressTxVisible=5;addressTxLoadError='';renderAddressTxList()
   tokenTransferAddress=address;tokenTransferItems=tokenActivity.items.filter(item=>item&&typeof item.transaction_hash==='string');tokenTransferNext=tokenActivity.next_page_params||null;tokenTransferFilter='all';tokenTransferVisible=5;tokenTransferLoadError='';tokenFilterButtons.forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.tokenFilter==='all')));renderTokenTransferList()
   document.querySelector('#address-explorer').href='https://eth-sepolia.blockscout.com/address/'+encodeURIComponent(address);
   addressResult.hidden=false;
