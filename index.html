@@ -145,7 +145,7 @@ addressForm.addEventListener('submit',async event=>{
   addressError.hidden=false;
  }finally{clearTimeout(timeout);addressButton.disabled=false;addressLoading.hidden=true}
 });
-const MARKET_API='https://api.kraken.com/0/public/Ticker?pair=XBTUSD,ETHUSD';const MARKET_OHLC_API='https://api.kraken.com/0/public/OHLC?pair=XBTUSD,ETHUSD&interval=60&since=';
+const MARKET_API='https://api.kraken.com/0/public/Ticker?pair=XBTUSD,ETHUSD';const MARKET_OHLC_API='https://api.kraken.com/0/public/OHLC?interval=60&since=';
 const marketRefresh=document.querySelector('#market-refresh'),marketStatus=document.querySelector('#market-status');
 const usdFormat=new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',minimumFractionDigits:2,maximumFractionDigits:2});
 function setMarketCard(prefix,name,ticker){
@@ -172,14 +172,14 @@ async function loadMarketSnapshot(){
  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),15000);
  try{
   const since=Math.floor(Date.now()/1000)-24*60*60;
-  const [response,chartResponse]=await Promise.all([fetch(MARKET_API,{headers:{Accept:'application/json'},signal:controller.signal}),fetch(MARKET_OHLC_API+since,{headers:{Accept:'application/json'},signal:controller.signal}).catch(()=>null)]);
+  const [response,btcChartResponse,ethChartResponse]=await Promise.all([fetch(MARKET_API,{headers:{Accept:'application/json'},signal:controller.signal}),fetch(MARKET_OHLC_API+since+'&pair=XBTUSD',{headers:{Accept:'application/json'},signal:controller.signal}).catch(()=>null),fetch(MARKET_OHLC_API+since+'&pair=ETHUSD',{headers:{Accept:'application/json'},signal:controller.signal}).catch(()=>null)]);
   if(response.status===429)throw Error('rate-limit');if(!response.ok)throw Error('service');
   const payload=await response.json();if(payload.error&&payload.error.length)throw Error('service');
   const entries=Object.entries(payload.result||{}),btc=entries.find(([key])=>/^XXBTZUSD$|^XBTUSD$/i.test(key))?.[1],eth=entries.find(([key])=>/^XETHZUSD$|^ETHUSD$/i.test(key))?.[1];
   if(!btc||!eth)throw Error('incomplete');
   setMarketCard('btc','Bitcoin',btc);setMarketCard('eth','Ethereum',eth);
   let chartReady=false;
-  try{if(!chartResponse||!chartResponse.ok)throw Error('chart');const chartPayload=await chartResponse.json();if(chartPayload.error&&chartPayload.error.length)throw Error('chart');const chartEntries=Object.entries(chartPayload.result||{}),btcRows=chartEntries.find(([key])=>/^XXBTZUSD$|^XBTUSD$/i.test(key))?.[1],ethRows=chartEntries.find(([key])=>/^XETHZUSD$|^ETHUSD$/i.test(key))?.[1];renderMarketChart('btc','Bitcoin',btcRows);renderMarketChart('eth','Ethereum',ethRows);chartReady=true}catch{chartReady=false}
+  try{if(!btcChartResponse||!btcChartResponse.ok||!ethChartResponse||!ethChartResponse.ok)throw Error('chart');const [btcPayload,ethPayload]=await Promise.all([btcChartResponse.json(),ethChartResponse.json()]);if((btcPayload.error&&btcPayload.error.length)||(ethPayload.error&&ethPayload.error.length))throw Error('chart');const btcEntries=Object.entries(btcPayload.result||{}),ethEntries=Object.entries(ethPayload.result||{}),btcRows=btcEntries.find(([key])=>/^XXBTZUSD$|^XBTUSD$/i.test(key))?.[1],ethRows=ethEntries.find(([key])=>/^XETHZUSD$|^ETHUSD$/i.test(key))?.[1];renderMarketChart('btc','Bitcoin',btcRows);renderMarketChart('eth','Ethereum',ethRows);chartReady=true}catch{chartReady=false}
   marketStatus.textContent='Обновлено '+new Intl.DateTimeFormat('ru-RU',{dateStyle:'medium',timeStyle:'short'}).format(new Date())+'. Изменение рассчитано по текущей цене и цене открытия за 24 часа.'+(chartReady?' Графики построены по часовым свечам.':' Котировки доступны, но графики временно не загрузились.');
  }catch(err){
   marketStatus.setAttribute('role','alert');
