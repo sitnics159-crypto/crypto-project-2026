@@ -3,7 +3,9 @@ name: Deploy static content to Pages
 
 on:
   push:
-    branches: ["feat/sepolia-transaction-check"]
+    branches:
+      - main
+      - feat/sepolia-transaction-check
   workflow_dispatch:
 
 permissions:
@@ -12,7 +14,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: "pages"
+  group: pages
   cancel-in-progress: false
 
 jobs:
