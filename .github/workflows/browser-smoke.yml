@@ -13,6 +13,7 @@ permissions:
 
 jobs:
   browser-smoke:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -47,6 +48,14 @@ jobs:
               if (response.url().includes('eth-sepolia.blockscout.com/api/v2/') ||
                   response.url().includes('api.kraken.com/0/public/')) {
                 apiResponses.push({ url: response.url(), status: response.status() });
+            if (response.url().includes('/token-transfers?')) {
+              response.json().then(body => console.log('ERC-20 API payload:', JSON.stringify({
+                itemCount: Array.isArray(body.items) ? body.items.length : null,
+                nextPage: body.next_page_params || null,
+                firstItem: body.items?.[0] || null,
+                message: body.message || null
+              }))).catch(error => console.log('Could not read token API payload:', error.message));
+            }
               }
             });
             page.on('pageerror', error => console.error('PAGE ERROR:', error.message));
