@@ -144,7 +144,7 @@ function tokenAmount(item){
  const raw=item.total&&item.total.value,decimals=tokenDecimals(item);
  if(raw===null||raw===undefined)return 'Количество не указано источником';
  if(decimals===null)return 'Не рассчитано: decimals недоступен (исходное значение: '+String(raw)+')';
- try{const value=BigInt(String(raw)),base=10n**BigInt(decimals),whole=value/base,fraction=(value%base).toString().padStart(decimals,'0').slice(0,6).replace(/0+$/,'');return whole.toString()+(fraction?'.'+fraction:'')}catch{return 'Количество не удалось прочитать (исходное значение: '+String(raw)+')'}
+ try{const value=BigInt(String(raw)),base=10n**BigInt(decimals),whole=value/base,fraction=(value%base).toString().padStart(decimals,'0').replace(/0+$/,'');return whole.toString()+(fraction?'.'+fraction:'')}catch{return 'Количество не удалось прочитать (исходное значение: '+String(raw)+')'}
 }
 const tokenMetadataCache=new Map();
 async function resolveTokenDecimals(item){
