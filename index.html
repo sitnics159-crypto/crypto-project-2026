@@ -174,7 +174,8 @@ function appendTokenTransfer(item,address){
  const details=document.createElement('span');const updateAmount=()=>{details.textContent=tokenName+' · '+tokenAmount(item)+(token.symbol?' '+token.symbol:'')};updateAmount();
  if(tokenDecimals(item)===null&&item.token_type==='ERC-20')resolveTokenDecimals(item).then(decimals=>{if(decimals!==null)updateAmount()});
  const block=document.createElement('span');block.textContent=item.block_number==null?'Ожидает включения в блок':'Блок № '+item.block_number;
- row.append(link,direction,details,block);return row
+ const log=document.createElement('span');log.textContent=item.log_index===null||item.log_index===undefined?'Номер события не предоставлен':'Событие журнала № '+item.log_index;
+ row.append(link,direction,details,block,log);return row
 }
 function filteredTokenTransfers(){return tokenTransferItems.filter(item=>{const from=item.from&&item.from.hash||'',to=item.to&&item.to.hash||'',address=tokenTransferAddress.toLowerCase(),incoming=to.toLowerCase()===address&&from.toLowerCase()!==address,outgoing=from.toLowerCase()===address&&to.toLowerCase()!==address;return tokenTransferFilter==='all'||(tokenTransferFilter==='incoming'&&incoming)||(tokenTransferFilter==='outgoing'&&outgoing)})}
 function renderTokenTransferList(){
@@ -201,8 +202,8 @@ function csvCell(value){let text=String(value??'');if(/^[=+@\- \t\r]/.test(text)
 function exactTokenAmount(item){const raw=item.total&&item.total.value,decimalsValue=(item.total&&item.total.decimals)??(item.token&&item.token.decimals);if(raw===null||raw===undefined||decimalsValue===null||decimalsValue===undefined)return '';try{const decimals=Number(decimalsValue);if(!Number.isInteger(decimals)||decimals<0||decimals>255)return '';const value=BigInt(String(raw)),base=10n**BigInt(decimals),whole=value/base,fraction=(value%base).toString().padStart(decimals,'0').replace(/0+$/,'');return whole.toString()+(fraction?'.'+fraction:'')}catch{return ''}}
 function exportTokenTransfers(){
  const rows=filteredTokenTransfers();if(!rows.length)return;
- const headers=['transaction_hash','from_address','to_address','token_name','token_symbol','token_address','amount','amount_raw','decimals','block_number','timestamp'];
- const csv=[headers,...rows.map(item=>{const token=item.token&&typeof item.token==='object'?item.token:{},from=item.from&&item.from.hash||'',to=item.to&&item.to.hash||'',total=item.total&&typeof item.total==='object'?item.total:{};return[item.transaction_hash,from,to,token.name||'',token.symbol||'',token.address_hash||'',exactTokenAmount(item),total.value??'',total.decimals??token.decimals??'',item.block_number??'',item.timestamp||'']})].map(row=>row.map(csvCell).join(',')).join('\r\n');
+ const headers=['transaction_hash','log_index','token_type','from_address','to_address','token_name','token_symbol','token_address','amount','amount_raw','decimals','block_number','timestamp'];
+ const csv=[headers,...rows.map(item=>{const token=item.token&&typeof item.token==='object'?item.token:{},from=item.from&&item.from.hash||'',to=item.to&&item.to.hash||'',total=item.total&&typeof item.total==='object'?item.total:{};return[item.transaction_hash,item.log_index??'',item.token_type||'',from,to,token.name||'',token.symbol||'',token.address_hash||'',exactTokenAmount(item),total.value??'',total.decimals??token.decimals??'',item.block_number??'',item.timestamp||'']})].map(row=>row.map(csvCell).join(',')).join('\r\n');
  const blob=new Blob(['\uFEFF',csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),link=document.createElement('a');
  link.href=url;link.download='sepolia-token-transfers-'+(tokenTransferAddress||'address').toLowerCase().slice(2,12)+'-'+tokenTransferFilter+'.csv';document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
  tokenExportStatus.textContent='Файл готов: '+rows.length+' загруженных переводов ('+(tokenTransferFilter==='all'?'все':tokenTransferFilter==='incoming'?'входящие':'исходящие')+').'
