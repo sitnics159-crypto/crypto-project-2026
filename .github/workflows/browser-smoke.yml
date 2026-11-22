@@ -71,7 +71,7 @@ jobs:
               const market = await page.locator('#market-status').innerText();
               console.log('Market status:', market);
 
-              const address = '0x88B2843f5EFa62cf88Fa6Fafa0256e43082B8296';
+              const address = '0xd482cCc8EC97e9cA7a365F2403bf7f228aD149A0';
               await page.locator('#address-input').fill(address);
               await page.locator('#address-submit').click();
               await page.waitForFunction(() =>
