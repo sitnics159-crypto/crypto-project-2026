@@ -254,13 +254,13 @@ addressForm.addEventListener('submit',async event=>{
 const MARKET_API='https://api.kraken.com/0/public/Ticker?pair=XBTUSD,ETHUSD';const MARKET_OHLC_API='https://api.kraken.com/0/public/OHLC?interval=60&since=';
 const marketRefresh=document.querySelector('#market-refresh'),marketStatus=document.querySelector('#market-status');
 const usdFormat=new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',minimumFractionDigits:2,maximumFractionDigits:2});
-function setMarketCard(prefix,name,ticker){
- const last=Number(ticker&&ticker.c&&ticker.c[0]),open=Number(ticker&&ticker.o),high=Number(ticker&&ticker.h&&ticker.h[1]),low=Number(ticker&&ticker.l&&ticker.l[1]);
- if(!Number.isFinite(last)||!Number.isFinite(open)||open<=0||!Number.isFinite(high)||!Number.isFinite(low))throw Error('incomplete');
+function setMarketCard(prefix,name,ticker,referenceOpen){
+ const last=Number(ticker&&ticker.c&&ticker.c[0]),open=Number(referenceOpen),high=Number(ticker&&ticker.h&&ticker.h[1]),low=Number(ticker&&ticker.l&&ticker.l[1]);
+ if(!Number.isFinite(last)||!Number.isFinite(high)||!Number.isFinite(low))throw Error('incomplete');
  put('#'+prefix+'-price',usdFormat.format(last));if(prefix==='eth')latestEthUsdPrice=last;
- const change=((last-open)/open)*100,changeBox=document.querySelector('#'+prefix+'-change');
- changeBox.className='market-change '+(change>=0?'positive':'negative');
- changeBox.textContent=(change>=0?'▲ +':'▼ ')+change.toFixed(2)+'% за 24 ч';
+ const changeBox=document.querySelector('#'+prefix+'-change');
+ if(Number.isFinite(open)&&open>0){const change=((last-open)/open)*100;changeBox.className='market-change '+(change>=0?'positive':'negative');changeBox.textContent=(change>=0?'▲ +':'▼ ')+change.toFixed(2)+'% за 24 ч'}
+ else{changeBox.className='market-change';changeBox.textContent='Изменение за 24 ч недоступно'}
  put('#'+prefix+'-high',usdFormat.format(high));put('#'+prefix+'-low',usdFormat.format(low));
 }
 function renderMarketChart(prefix,asset,rows){
@@ -283,10 +283,12 @@ async function loadMarketSnapshot(){
   const payload=await response.json();if(payload.error&&payload.error.length)throw Error('service');
   const entries=Object.entries(payload.result||{}),btc=entries.find(([key])=>/^XXBTZUSD$|^XBTUSD$/i.test(key))?.[1],eth=entries.find(([key])=>/^XETHZUSD$|^ETHUSD$/i.test(key))?.[1];
   if(!btc||!eth)throw Error('incomplete');
-  setMarketCard('btc','Bitcoin',btc);setMarketCard('eth','Ethereum',eth);updateTransactionFeeEstimate();
-  let chartReady=false;
-  try{if(!btcChartResponse||!btcChartResponse.ok||!ethChartResponse||!ethChartResponse.ok)throw Error('chart');const [btcPayload,ethPayload]=await Promise.all([btcChartResponse.json(),ethChartResponse.json()]);if((btcPayload.error&&btcPayload.error.length)||(ethPayload.error&&ethPayload.error.length))throw Error('chart');const btcEntries=Object.entries(btcPayload.result||{}),ethEntries=Object.entries(ethPayload.result||{}),btcRows=btcEntries.find(([key])=>/^XXBTZUSD$|^XBTUSD$/i.test(key))?.[1],ethRows=ethEntries.find(([key])=>/^XETHZUSD$|^ETHUSD$/i.test(key))?.[1];renderMarketChart('btc','Bitcoin',btcRows);renderMarketChart('eth','Ethereum',ethRows);chartReady=true}catch{chartReady=false}
-  marketStatus.textContent='Обновлено '+new Intl.DateTimeFormat('ru-RU',{dateStyle:'medium',timeStyle:'short'}).format(new Date())+'. Изменение рассчитано по текущей цене и цене открытия за 24 часа.'+(chartReady?' Графики построены по часовым свечам.':' Котировки доступны, но графики временно не загрузились.');
+  let btcRows=null,ethRows=null,chartReady=false;
+  try{if(!btcChartResponse||!btcChartResponse.ok||!ethChartResponse||!ethChartResponse.ok)throw Error('chart');const [btcPayload,ethPayload]=await Promise.all([btcChartResponse.json(),ethChartResponse.json()]);if((btcPayload.error&&btcPayload.error.length)||(ethPayload.error&&ethPayload.error.length))throw Error('chart');const btcEntries=Object.entries(btcPayload.result||{}),ethEntries=Object.entries(ethPayload.result||{});btcRows=btcEntries.find(([key])=>/^XXBTZUSD$|^XBTUSD$/i.test(key))?.[1]||null;ethRows=ethEntries.find(([key])=>/^XETHZUSD$|^ETHUSD$/i.test(key))?.[1]||null;renderMarketChart('btc','Bitcoin',btcRows);renderMarketChart('eth','Ethereum',ethRows);chartReady=true}catch{chartReady=false}
+  const btcReferenceOpen=Array.isArray(btcRows)&&btcRows.length?Number(btcRows[0][1]):NaN,ethReferenceOpen=Array.isArray(ethRows)&&ethRows.length?Number(ethRows[0][1]):NaN;
+  setMarketCard('btc','Bitcoin',btc,btcReferenceOpen);setMarketCard('eth','Ethereum',eth,ethReferenceOpen);updateTransactionFeeEstimate();
+  const changesReady=Number.isFinite(btcReferenceOpen)&&btcReferenceOpen>0&&Number.isFinite(ethReferenceOpen)&&ethReferenceOpen>0;
+  marketStatus.textContent='Обновлено '+new Intl.DateTimeFormat('ru-RU',{dateStyle:'medium',timeStyle:'short'}).format(new Date())+'. '+(changesReady?'Изменение за 24 ч рассчитано относительно первой доступной часовой свечи в интервале запроса.':'Данные для расчёта изменения за 24 ч временно недоступны.')+(chartReady?' Графики построены по часовым свечам.':' Котировки доступны, но графики временно не загрузились.');
  }catch(err){
   marketStatus.setAttribute('role','alert');
   marketStatus.textContent=err.name==='AbortError'?'Источник отвечает слишком долго. Нажмите «Обновить» для повтора.':err.message==='rate-limit'?'Слишком много запросов к источнику. Подождите и повторите.':'Не удалось получить котировки. Нажмите «Обновить» для повтора.';
