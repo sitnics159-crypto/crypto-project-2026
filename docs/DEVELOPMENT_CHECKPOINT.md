@@ -1,11 +1,11 @@
 # Development Checkpoint
 
-> Live checkpoint refreshed 2026-11-22 after merging PRs #24, #25, and #28. Refresh GitHub state before relying on any SHA or status below.
+> Live checkpoint refreshed 2026-11-22 after merging PRs #24, #25, #26, #27, and #28. Refresh GitHub state before relying on any SHA or status below.
 
 ## Repository
 - Repository: `sitnics159-crypto/crypto-project-2026`
 - Default branch: `main`
-- Main SHA at this checkpoint update: `e642c924d2d4c6db57f0b0a93598383b26f02995`
+- Main SHA at this checkpoint update: `d54a7e6d2311c4b6ee7b7cdace492489a6a0abfe`
 - Continuous Development System (CDS) is present on main from merged PR #26.
 - Product: static prototype for public Ethereum Sepolia transaction/address lookup and reference BTC/ETH market data.
 
@@ -29,9 +29,11 @@
   - Added `.github/CONTINUOUS_DEVELOPMENT_SYSTEM.md` and the development checkpoint.
   - Merge commit: `c115264710b57a9ef24da7fe23e889a5e03eee69`
   - URL: https://github.com/sitnics159-crypto/crypto-project-2026/pull/26
-- PR #27 — **Refresh live development checkpoint** — OPEN while this checkpoint is being updated.
-  - This PR updates this file to reflect the verified merges and current main SHA.
-  - Its previous head checks (`validate`, `browser-smoke`) both passed on `154b0ac935f30bf1d12c989ca4ba231457ac4cf5`; new checks must be verified on the updated head before merge.
+- PR #27 — **Refresh live development checkpoint** — MERGED.
+  - Refreshed this checkpoint to record the verified merges and weekly CI schedules.
+  - Reviewed head: `81bd936112fa81e5e142f23b10a7f5bee1a7033d`.
+  - `validate` and `browser-smoke` both passed on that exact head.
+  - Merge commit: `d54a7e6d2311c4b6ee7b7cdace492489a6a0abfe`
   - URL: https://github.com/sitnics159-crypto/crypto-project-2026/pull/27
 - PR #28 — **Add weekly CI health checks** — MERGED.
   - `validate` scheduled Mondays at 05:17 UTC; `browser-smoke` scheduled Mondays at 05:37 UTC. Existing push, pull-request, and manual triggers remain.
@@ -46,12 +48,11 @@
 - The connector previously could not read branch-protection details (HTTP 403); do not infer that a ruleset was saved.
 
 ## Priority work queue
-1. Complete PR #27 only after its updated checkpoint diff and fresh CI checks are verified.
-2. Protect `main` with a repository Ruleset: require pull requests and successful validation checks; block force pushes and branch deletion. Verify the saved ruleset in GitHub after creation.
-3. Review and pin third-party GitHub Actions to immutable commit SHAs; evaluate Playwright/browser version pinning and reproducibility.
-4. Inspect public API rate-limit handling, timeouts, and graceful failure states; add regression tests for any defects found.
-5. Verify GitHub Pages deployment and the published site after code changes.
-6. Consider moving core tests out of workflow-only logic so they can run locally and in CI; review `SECURITY.md` and an appropriate `LICENSE`.
+1. Protect `main` with a repository Ruleset: require pull requests and successful `validate` and `browser-smoke` checks; block force pushes and branch deletion. Verify the saved ruleset in GitHub after creation.
+2. Review and pin third-party GitHub Actions to immutable commit SHAs; evaluate Playwright/browser version pinning and reproducibility.
+3. Inspect public API rate-limit handling, timeouts, and graceful failure states; add regression tests for any defects found.
+4. Verify GitHub Pages deployment and the published site after code changes.
+5. Consider moving core tests out of workflow-only logic so they can run locally and in CI; review `SECURITY.md` and an appropriate `LICENSE`.
 
 ## Session protocol
 - Start: read this file and `.github/CONTINUOUS_DEVELOPMENT_SYSTEM.md`; refresh main SHA, open PRs, diffs, checks, and settings.
@@ -61,4 +62,4 @@
 - No background development is implied. Automation runs only through configured GitHub Actions or explicitly scheduled supported tasks.
 
 ## Next action
-Finish the refreshed PR #27 after verifying its updated head SHA, complete diff, and fresh `validate` and `browser-smoke` results. Then configure and independently verify the `main` protection Ruleset.
+Configure and independently verify the `main` protection Ruleset, then continue the security and reliability audit.
