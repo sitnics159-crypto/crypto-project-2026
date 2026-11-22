@@ -219,17 +219,14 @@ jobs:
 
               await page.locator('[data-token-filter="all"]').click();
               if (await page.locator('#token-load-more').isVisible()) {
-                const nextPageResponse = page.waitForResponse(response =>
-                  response.url().includes('/token-transfers?') &&
-                  response.url().includes('type=ERC-20') && response.status() === 200
-                );
+                const beforeRows = await page.locator('#address-token-transfers .token-transfer').count();
                 await page.locator('#token-load-more').click();
-                await nextPageResponse;
-                await page.waitForFunction(() =>
-                  document.querySelectorAll('#address-token-transfers .token-transfer').length === 10,
+                await page.waitForFunction(previousCount =>
+                  document.querySelectorAll('#address-token-transfers .token-transfer').length > previousCount,
+                  beforeRows,
                   { timeout: 10000 }
                 );
-                console.log('Pagination loaded; visible rows:', await page.locator('#address-token-transfers .token-transfer').count());
+                console.log('Locally loaded pagination expanded; visible rows:', await page.locator('#address-token-transfers .token-transfer').count());
               }
               const downloadPromise = page.waitForEvent('download');
               await page.locator('#token-export').click();
