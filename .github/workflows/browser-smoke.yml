@@ -1,0 +1,108 @@
+name: Browser smoke test
+
+on:
+  push:
+    branches:
+      - fix/erc20-transfer-accuracy-2026
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  browser-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Playwright
+        run: |
+          npm install --no-save --no-package-lock playwright
+          npx playwright install --with-deps chromium
+      - name: Start local preview server
+        run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/preview-server.log 2>&1 &
+          for attempt in $(seq 1 20); do
+            if curl --fail --silent http://127.0.0.1:4173/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/preview-server.log
+          exit 1
+      - name: Test page against live Sepolia and Kraken APIs
+        run: |
+          node <<'JS'
+          const { chromium } = require('playwright');
+          (async () => {
+            const browser = await chromium.launch({ headless: true });
+            const page = await browser.newPage({ acceptDownloads: true });
+            const apiResponses = [];
+            page.on('response', response => {
+              if (response.url().includes('eth-sepolia.blockscout.com/api/v2/') ||
+                  response.url().includes('api.kraken.com/0/public/')) {
+                apiResponses.push({ url: response.url(), status: response.status() });
+              }
+            });
+            page.on('pageerror', error => console.error('PAGE ERROR:', error.message));
+            try {
+              await page.goto('http://127.0.0.1:4173/', { waitUntil: 'domcontentloaded' });
+              if (!(await page.title()).includes('Sepolia')) throw new Error('Unexpected page title');
+              await page.locator('#market-title').waitFor();
+              await page.waitForFunction(() => {
+                const status = document.querySelector('#market-status')?.textContent || '';
+                return status.includes('Обновлено') || status.includes('Не удалось') ||
+                       status.includes('Слишком много запросов') || status.includes('Источник отвечает');
+              }, { timeout: 25000 });
+              const market = await page.locator('#market-status').innerText();
+              console.log('Market status:', market);
+
+              const address = '0x88B2843f5EFa62cf88Fa6Fafa0256e43082B8296';
+              await page.locator('#address-input').fill(address);
+              await page.locator('#address-submit').click();
+              await page.waitForFunction(() =>
+                !document.querySelector('#address-result').hidden ||
+                !document.querySelector('#address-error').hidden,
+                { timeout: 30000 }
+              );
+              const error = await page.locator('#address-error').innerText();
+              if (!(await page.locator('#address-result').isVisible())) {
+                throw new Error('Address lookup failed: ' + error);
+              }
+              const tokenRows = await page.locator('#address-token-transfers .token-transfer').count();
+              console.log('Address loaded; token rows:', tokenRows);
+              if (tokenRows === 0) throw new Error('Expected ERC-20 transfer rows for smoke-test address');
+
+              const tokenRequest = apiResponses.find(item =>
+                item.url.includes('/token-transfers?') && item.url.includes('type=ERC-20'));
+              if (!tokenRequest) throw new Error('ERC-20 endpoint was not requested');
+              if (tokenRequest.status !== 200) throw new Error('ERC-20 endpoint status: ' + tokenRequest.status);
+
+              for (const filter of ['incoming', 'outgoing', 'all']) {
+                await page.locator('[data-token-filter="' + filter + '"]').click();
+                await page.waitForTimeout(150);
+                console.log(filter, 'visible rows:', await page.locator('#address-token-transfers .token-transfer').count());
+              }
+
+              await page.locator('[data-token-filter="all"]').click();
+              const downloadPromise = page.waitForEvent('download');
+              await page.locator('#token-export').click();
+              const download = await downloadPromise;
+              const path = await download.path();
+              const fs = require('fs');
+              const csv = fs.readFileSync(path, 'utf8');
+              for (const header of ['transaction_hash', 'log_index', 'amount_raw', 'decimals']) {
+                if (!csv.includes(header)) throw new Error('CSV missing column: ' + header);
+              }
+              console.log('CSV downloaded:', download.suggestedFilename(), 'bytes:', Buffer.byteLength(csv));
+              console.log('Relevant live API responses:', JSON.stringify(apiResponses, null, 2));
+            } finally {
+              await browser.close();
+            }
+          })().catch(error => { console.error(error); process.exit(1); });
+          JS
