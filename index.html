@@ -135,10 +135,33 @@ let addressTxItems=[],addressTxNext=null,addressTxVisible=5,addressTxLoading=fal
 let addressTxCurrent='';
 let tokenTransferAddress='',tokenTransferItems=[],tokenTransferNext=null,tokenTransferFilter='all',tokenTransferVisible=5,tokenTransferLoading=false,tokenTransferLoadError='';
 const tokenFilterButtons=[...document.querySelectorAll('[data-token-filter]')],tokenLoadMore=document.querySelector('#token-load-more'),tokenListStatus=document.querySelector('#token-list-status'),tokenList=document.querySelector('#address-token-transfers'),tokenExport=document.querySelector('#token-export'),tokenExportStatus=document.querySelector('#token-export-status');
+function tokenDecimals(item){
+ const value=(item.total&&item.total.decimals)??(item.token&&item.token.decimals);
+ if(value===null||value===undefined||value==='')return null;
+ const decimals=Number(value);return Number.isInteger(decimals)&&decimals>=0&&decimals<=255?decimals:null
+}
 function tokenAmount(item){
- const raw=item.total&&item.total.value,decimalValue=(item.total&&item.total.decimals)??(item.token&&item.token.decimals);
- if(raw===null||raw===undefined||decimalValue===null||decimalValue===undefined)return 'Количество не определено (нет данных о decimals)';
- try{const decimals=Number(decimalValue);if(!Number.isInteger(decimals)||decimals<0||decimals>255)return 'Количество не определено';const value=BigInt(String(raw)),base=10n**BigInt(decimals),whole=value/base,fraction=(value%base).toString().padStart(decimals,'0').slice(0,6).replace(/0+$/,'');return whole.toString()+(fraction?'.'+fraction:'')}catch{return 'Количество не удалось прочитать'}
+ const raw=item.total&&item.total.value,decimals=tokenDecimals(item);
+ if(raw===null||raw===undefined)return 'Количество не указано источником';
+ if(decimals===null)return 'Не рассчитано: decimals недоступен (исходное значение: '+String(raw)+')';
+ try{const value=BigInt(String(raw)),base=10n**BigInt(decimals),whole=value/base,fraction=(value%base).toString().padStart(decimals,'0').slice(0,6).replace(/0+$/,'');return whole.toString()+(fraction?'.'+fraction:'')}catch{return 'Количество не удалось прочитать (исходное значение: '+String(raw)+')'}
+}
+const tokenMetadataCache=new Map();
+async function resolveTokenDecimals(item){
+ const known=tokenDecimals(item);if(known!==null)return known;
+ const token=item.token&&typeof item.token==='object'?item.token:{},address=token.address_hash;
+ if(typeof address!=='string'||!/^0x[0-9a-fA-F]{40}$/.test(address))return null;
+ const key=address.toLowerCase();
+ if(!tokenMetadataCache.has(key)){
+  const request=fetch('https://eth-sepolia.blockscout.com/api/v2/tokens/'+encodeURIComponent(address),{headers:{Accept:'application/json'}})
+   .then(response=>{if(!response.ok)throw Error('metadata-unavailable');return response.json()})
+   .then(metadata=>{const value=metadata&&metadata.decimals;if(value===null||value===undefined||value==='')return null;const decimals=Number(value);return Number.isInteger(decimals)&&decimals>=0&&decimals<=255?decimals:null})
+   .catch(()=>null);
+  tokenMetadataCache.set(key,request)
+ }
+ const decimals=await tokenMetadataCache.get(key);
+ if(decimals!==null){token.decimals=decimals;item.token=token}
+ return decimals
 }
 function appendTokenTransfer(item,address){
  const row=document.createElement('div');row.className='token-transfer';
@@ -146,13 +169,14 @@ function appendTokenTransfer(item,address){
  const token=item.token&&typeof item.token==='object'?item.token:{};
  const tokenName=token.symbol||token.name||(token.address_hash?'Контракт '+token.address_hash.slice(0,10)+'…':'Токен не распознан');
  const link=document.createElement('a');link.href='https://eth-sepolia.blockscout.com/tx/'+encodeURIComponent(txHash);link.target='_blank';link.rel='noopener noreferrer';link.textContent=txHash||'Открыть транзакцию';
- const direction=document.createElement('span');const from=item.from&&item.from.hash||'',to=item.to&&item.to.hash||'';
- direction.textContent=from.toLowerCase()===address.toLowerCase()?'Исходящий перевод':to.toLowerCase()===address.toLowerCase()?'Входящий перевод':'Перевод с участием адреса';
- const details=document.createElement('span');details.textContent=tokenName+' · '+tokenAmount(item)+(token.symbol?' '+token.symbol:'');
+ const direction=document.createElement('span');const from=item.from&&item.from.hash||'',to=item.to&&item.to.hash||'',sameAddress=address.toLowerCase(),isOutgoing=from.toLowerCase()===sameAddress,isIncoming=to.toLowerCase()===sameAddress;
+ direction.textContent=isOutgoing&&isIncoming?'Внутренний перевод':isOutgoing?'Исходящий перевод':isIncoming?'Входящий перевод':'Перевод с участием адреса';
+ const details=document.createElement('span');const updateAmount=()=>{details.textContent=tokenName+' · '+tokenAmount(item)+(token.symbol?' '+token.symbol:'')};updateAmount();
+ if(tokenDecimals(item)===null&&item.token_type==='ERC-20')resolveTokenDecimals(item).then(decimals=>{if(decimals!==null)updateAmount()});
  const block=document.createElement('span');block.textContent=item.block_number==null?'Ожидает включения в блок':'Блок № '+item.block_number;
  row.append(link,direction,details,block);return row
 }
-function filteredTokenTransfers(){return tokenTransferItems.filter(item=>{const from=item.from&&item.from.hash||'',to=item.to&&item.to.hash||'',incoming=to.toLowerCase()===tokenTransferAddress.toLowerCase(),outgoing=from.toLowerCase()===tokenTransferAddress.toLowerCase();return tokenTransferFilter==='all'||(tokenTransferFilter==='incoming'&&incoming)||(tokenTransferFilter==='outgoing'&&outgoing)})}
+function filteredTokenTransfers(){return tokenTransferItems.filter(item=>{const from=item.from&&item.from.hash||'',to=item.to&&item.to.hash||'',address=tokenTransferAddress.toLowerCase(),incoming=to.toLowerCase()===address&&from.toLowerCase()!==address,outgoing=from.toLowerCase()===address&&to.toLowerCase()!==address;return tokenTransferFilter==='all'||(tokenTransferFilter==='incoming'&&incoming)||(tokenTransferFilter==='outgoing'&&outgoing)})}
 function renderTokenTransferList(){
  const filtered=filteredTokenTransfers();
  tokenList.replaceChildren();
@@ -165,7 +189,7 @@ function renderTokenTransferList(){
 async function loadMoreTokenTransfers(){
  if(!tokenTransferNext||tokenTransferLoading)return;
  tokenTransferLoading=true;tokenTransferLoadError='';tokenLoadMore.disabled=true;tokenLoadMore.textContent='Загружаем…';
- const params=new URLSearchParams();for(const [key,value] of Object.entries(tokenTransferNext))if(value!==null&&value!==undefined)params.set(key,String(value));
+ const params=new URLSearchParams();for(const [key,value] of Object.entries(tokenTransferNext))if(value!==null&&value!==undefined)params.set(key,String(value));params.set('type','ERC-20');
  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),15000);
  try{const response=await fetch(ADDRESS_API+encodeURIComponent(tokenTransferAddress)+'/token-transfers?'+params.toString(),{headers:{Accept:'application/json'},signal:controller.signal});if(response.status===429)throw Error('rate-limit');if(!response.ok)throw Error('service');const data=await response.json();if(!Array.isArray(data.items))throw Error('incomplete');tokenTransferItems.push(...data.items.filter(item=>item&&typeof item.transaction_hash==='string'));tokenTransferLoadError='';tokenTransferNext=data.next_page_params||null;tokenTransferVisible+=5;renderTokenTransferList()}
  catch(err){tokenTransferLoadError=err.name==='AbortError'?'Запрос выполняется слишком долго. Нажмите «Показать ещё» для повтора.':err.message==='rate-limit'?'Blockscout ограничил частоту запросов. Попробуйте ещё раз чуть позже.':'Не удалось загрузить следующую страницу переводов. Нажмите для повтора.';tokenLoadMore.hidden=false}
@@ -230,7 +254,7 @@ addressForm.addEventListener('submit',async event=>{
  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),15000);
  try{
   const base=ADDRESS_API+encodeURIComponent(address);addressTxCurrent=address;
-  const responses=await Promise.all([fetch(base,{headers:{Accept:'application/json'},signal:controller.signal}),fetch(base+'/transactions',{headers:{Accept:'application/json'},signal:controller.signal}),fetch(base+'/token-transfers',{headers:{Accept:'application/json'},signal:controller.signal})]);
+  const responses=await Promise.all([fetch(base,{headers:{Accept:'application/json'},signal:controller.signal}),fetch(base+'/transactions',{headers:{Accept:'application/json'},signal:controller.signal}),fetch(base+'/token-transfers?type=ERC-20',{headers:{Accept:'application/json'},signal:controller.signal})]);
   if(responses.some(r=>r.status===404))throw Error('not-found');
   if(responses.some(r=>r.status===429))throw Error('rate-limit');
   if(responses.some(r=>!r.ok))throw Error('service');
