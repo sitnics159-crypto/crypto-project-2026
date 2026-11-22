@@ -62,7 +62,7 @@ jobs:
               await page.goto('http://127.0.0.1:4173/', { waitUntil: 'domcontentloaded' });
               if (!(await page.title()).includes('Sepolia')) throw new Error('Unexpected page title');
 
-              const edgeCases = await page.evaluate(() => {
+              const edgeCases = await page.evaluate(async () => {
                 const amountZeroDecimals = tokenAmount({ total: { value: '12345', decimals: '0' } });
                 const amountTiny = tokenAmount({ total: { value: '1', decimals: '18' } });
                 const amountInvalidDecimals = tokenAmount({ total: { value: '12345', decimals: '256' } });
