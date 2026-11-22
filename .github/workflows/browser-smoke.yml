@@ -1,6 +1,8 @@
 name: Browser smoke test
 
 on:
+  schedule:
+    - cron: '37 5 * * 1' # Weekly Monday 05:37 UTC
   push:
     branches:
       - main
