@@ -72,8 +72,8 @@ function isContractCall(tx){return transactionTypes(tx).includes('contract_call'
 function transactionTypeLabel(tx){
  const types=transactionTypes(tx);
  if(tx.created_contract||types.includes('contract_creation'))return 'Создание смарт-контракта';
- if(isContractCall(tx))return 'Вызов смарт-контракта';
  if(types.includes('token_transfer')||(Array.isArray(tx.token_transfers)&&tx.token_transfers.length))return 'Перевод токена';
+ if(isContractCall(tx))return 'Вызов смарт-контракта';
  if(types.includes('coin_transfer')||tx.value!==null&&tx.value!==undefined&&String(tx.value)!=='0')return 'Перевод ETH';
  if(tx.to&&typeof tx.to==='object'&&tx.to.hash)return 'Транзакция на адрес';
  return 'Не удалось определить';
@@ -135,10 +135,12 @@ let addressTxItems=[],addressTxNext=null,addressTxVisible=5,addressTxLoading=fal
 let addressTxCurrent='';
 let tokenTransferAddress='',tokenTransferItems=[],tokenTransferNext=null,tokenTransferFilter='all',tokenTransferVisible=5,tokenTransferLoading=false,tokenTransferLoadError='';
 const tokenFilterButtons=[...document.querySelectorAll('[data-token-filter]')],tokenLoadMore=document.querySelector('#token-load-more'),tokenListStatus=document.querySelector('#token-list-status'),tokenList=document.querySelector('#address-token-transfers'),tokenExport=document.querySelector('#token-export'),tokenExportStatus=document.querySelector('#token-export-status');
-function tokenDecimals(item){
- const value=(item.total&&item.total.decimals)??(item.token&&item.token.decimals);
+function validTokenDecimals(value){
  if(value===null||value===undefined||value==='')return null;
  const decimals=Number(value);return Number.isInteger(decimals)&&decimals>=0&&decimals<=255?decimals:null
+}
+function tokenDecimals(item){
+ return validTokenDecimals(item.total&&item.total.decimals)??validTokenDecimals(item.token&&item.token.decimals)
 }
 function tokenAmount(item){
  const raw=item.total&&item.total.value,decimals=tokenDecimals(item);
@@ -185,26 +187,31 @@ function renderTokenTransferList(){
  if(visible.length)tokenList.append(...visible.map(item=>appendTokenTransfer(item,tokenTransferAddress)));
  else{const empty=document.createElement('p');empty.className='hint';empty.textContent=tokenTransferFilter==='all'?'Переводы ERC-20 не найдены.':'Для этого фильтра переводы не найдены.';tokenList.append(empty)}
  tokenListStatus.textContent=tokenTransferLoadError||('Показано '+visible.length+' из '+filtered.length+' загруженных переводов'+(tokenTransferNext?' · есть следующая страница':''));
- tokenLoadMore.hidden=!tokenTransferNext;tokenLoadMore.disabled=tokenTransferLoading;tokenExport.disabled=filtered.length===0
+ tokenLoadMore.hidden=tokenTransferVisible>=filtered.length&&!tokenTransferNext;tokenLoadMore.disabled=tokenTransferLoading;tokenExport.disabled=filtered.length===0
 }
 async function loadMoreTokenTransfers(){
- if(!tokenTransferNext||tokenTransferLoading)return;
+ if(tokenTransferLoading)return;
+ if(filteredTokenTransfers().length>tokenTransferVisible){
+  tokenTransferVisible=Math.min(tokenTransferVisible+5,filteredTokenTransfers().length);
+  tokenTransferLoadError='';renderTokenTransferList();return
+ }
+ if(!tokenTransferNext)return;
  tokenTransferLoading=true;tokenTransferLoadError='';tokenLoadMore.disabled=true;tokenLoadMore.textContent='Загружаем…';
  const params=new URLSearchParams();for(const [key,value] of Object.entries(tokenTransferNext))if(value!==null&&value!==undefined)params.set(key,String(value));params.set('type','ERC-20');
  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),15000);
- try{const response=await fetch(ADDRESS_API+encodeURIComponent(tokenTransferAddress)+'/token-transfers?'+params.toString(),{headers:{Accept:'application/json'},signal:controller.signal});if(response.status===429)throw Error('rate-limit');if(!response.ok)throw Error('service');const data=await response.json();if(!Array.isArray(data.items))throw Error('incomplete');tokenTransferItems.push(...data.items.filter(item=>item&&typeof item.transaction_hash==='string'));tokenTransferLoadError='';tokenTransferNext=data.next_page_params||null;tokenTransferVisible+=5;renderTokenTransferList()}
+ try{const response=await fetch(ADDRESS_API+encodeURIComponent(tokenTransferAddress)+'/token-transfers?'+params.toString(),{headers:{Accept:'application/json'},signal:controller.signal});if(response.status===429)throw Error('rate-limit');if(!response.ok)throw Error('service');const data=await response.json();if(!Array.isArray(data.items))throw Error('incomplete');const seen=new Set(tokenTransferItems.map(item=>String(item.transaction_hash).toLowerCase()+':'+String(item.log_index??'')+':'+String(item.token&&item.token.address_hash||'').toLowerCase()));for(const item of data.items){if(!item||typeof item.transaction_hash!=='string')continue;const key=item.transaction_hash.toLowerCase()+':'+String(item.log_index??'')+':'+String(item.token&&item.token.address_hash||'').toLowerCase();if(!seen.has(key)){tokenTransferItems.push(item);seen.add(key)}}tokenTransferLoadError='';tokenTransferNext=data.next_page_params||null;tokenTransferVisible=Math.min(tokenTransferVisible+5,filteredTokenTransfers().length);renderTokenTransferList()}
  catch(err){tokenTransferLoadError=err.name==='AbortError'?'Запрос выполняется слишком долго. Нажмите «Показать ещё» для повтора.':err.message==='rate-limit'?'Blockscout ограничил частоту запросов. Попробуйте ещё раз чуть позже.':'Не удалось загрузить следующую страницу переводов. Нажмите для повтора.';tokenLoadMore.hidden=false}
  finally{clearTimeout(timeout);tokenTransferLoading=false;tokenLoadMore.disabled=false;tokenLoadMore.textContent='Показать ещё переводы';renderTokenTransferList()}
 }
 tokenFilterButtons.forEach(button=>button.addEventListener('click',()=>{tokenTransferFilter=button.dataset.tokenFilter;tokenTransferVisible=5;tokenFilterButtons.forEach(item=>item.setAttribute('aria-pressed',String(item===button)));renderTokenTransferList()}));
 tokenLoadMore.addEventListener('click',loadMoreTokenTransfers);
 function csvCell(value){let text=String(value??'');if(/^[=+@\- \t\r]/.test(text))text="'"+text;return '"'+text.replaceAll('"','""')+'"'}
-function exactTokenAmount(item){const raw=item.total&&item.total.value,decimalsValue=(item.total&&item.total.decimals)??(item.token&&item.token.decimals);if(raw===null||raw===undefined||decimalsValue===null||decimalsValue===undefined)return '';try{const decimals=Number(decimalsValue);if(!Number.isInteger(decimals)||decimals<0||decimals>255)return '';const value=BigInt(String(raw)),base=10n**BigInt(decimals),whole=value/base,fraction=(value%base).toString().padStart(decimals,'0').replace(/0+$/,'');return whole.toString()+(fraction?'.'+fraction:'')}catch{return ''}}
+function exactTokenAmount(item){const raw=item.total&&item.total.value,decimals=tokenDecimals(item);if(raw===null||raw===undefined||decimals===null)return '';try{const value=BigInt(String(raw)),base=10n**BigInt(decimals),whole=value/base,fraction=(value%base).toString().padStart(decimals,'0').replace(/0+$/,'');return whole.toString()+(fraction?'.'+fraction:'')}catch{return ''}}
 async function exportTokenTransfers(){
  const rows=filteredTokenTransfers();if(!rows.length)return;
  await Promise.all(rows.map(item=>item.token_type==='ERC-20'?resolveTokenDecimals(item):Promise.resolve(null)));
  const headers=['transaction_hash','log_index','token_type','from_address','to_address','token_name','token_symbol','token_address','amount','amount_raw','decimals','block_number','timestamp'];
- const csv=[headers,...rows.map(item=>{const token=item.token&&typeof item.token==='object'?item.token:{},from=item.from&&item.from.hash||'',to=item.to&&item.to.hash||'',total=item.total&&typeof item.total==='object'?item.total:{};return[item.transaction_hash,item.log_index??'',item.token_type||'',from,to,token.name||'',token.symbol||'',token.address_hash||'',exactTokenAmount(item),total.value??'',total.decimals??token.decimals??'',item.block_number??'',item.timestamp||'']})].map(row=>row.map(csvCell).join(',')).join('\r\n');
+ const csv=[headers,...rows.map(item=>{const token=item.token&&typeof item.token==='object'?item.token:{},from=item.from&&item.from.hash||'',to=item.to&&item.to.hash||'',total=item.total&&typeof item.total==='object'?item.total:{};return[item.transaction_hash,item.log_index??'',item.token_type||'',from,to,token.name||'',token.symbol||'',token.address_hash||'',exactTokenAmount(item),total.value??'',tokenDecimals(item)??'',item.block_number??'',item.timestamp||'']})].map(row=>row.map(csvCell).join(',')).join('\r\n');
  const blob=new Blob(['\uFEFF',csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),link=document.createElement('a');
  link.href=url;link.download='sepolia-token-transfers-'+(tokenTransferAddress||'address').toLowerCase().slice(2,12)+'-'+tokenTransferFilter+'.csv';document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
  tokenExportStatus.textContent='Файл готов: '+rows.length+' загруженных переводов ('+(tokenTransferFilter==='all'?'все':tokenTransferFilter==='incoming'?'входящие':'исходящие')+').'
