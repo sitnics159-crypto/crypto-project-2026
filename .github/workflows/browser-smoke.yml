@@ -107,6 +107,48 @@ jobs:
 
               const firstRowText = await page.locator('#address-token-transfers .token-transfer').first().innerText();
               if (!firstRowText.includes('10 FAUCET')) throw new Error('Expected 10 FAUCET display; got: ' + firstRowText);
+
+              const txHref = await page.locator('#address-token-transfers .token-transfer a').first().getAttribute('href');
+              const txHash = txHref.split('/').pop();
+              const txDiagnostics = await page.evaluate(async hash => {
+                const base = 'https://eth-sepolia.blockscout.com/api/v2/transactions/' + encodeURIComponent(hash);
+                const [detailResponse, transfersResponse, logsResponse] = await Promise.all([
+                  fetch(base),
+                  fetch(base + '/token-transfers?type=ERC-20'),
+                  fetch(base + '/logs')
+                ]);
+                const [detail, transfers, logs] = await Promise.all([
+                  detailResponse.json(), transfersResponse.json(), logsResponse.json()
+                ]);
+                return {
+                  statuses: [detailResponse.status, transfersResponse.status, logsResponse.status],
+                  detailHash: detail.hash,
+                  transferItems: transfers.items || [],
+                  logCount: Array.isArray(logs.items) ? logs.items.length : null,
+                  transferEventCount: (logs.items || []).filter(log =>
+                    Array.isArray(log.topics) &&
+                    String(log.topics[0]).toLowerCase() === '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
+                  ).length
+                };
+              }, txHash);
+              if (txDiagnostics.statuses.some(status => status !== 200)) {
+                throw new Error('Transaction detail/token-transfer/log API failed: ' + txDiagnostics.statuses.join(','));
+              }
+              if (txDiagnostics.detailHash.toLowerCase() !== txHash.toLowerCase()) {
+                throw new Error('Transaction detail endpoint returned a different hash');
+              }
+              if (!txDiagnostics.transferItems.some(item =>
+                item.transaction_hash.toLowerCase() === txHash.toLowerCase() && item.token_type === 'ERC-20'
+              )) throw new Error('Transaction endpoint did not return its ERC-20 transfer');
+              if (!txDiagnostics.transferEventCount) {
+                throw new Error('Transaction logs contain no ERC-20 Transfer event');
+              }
+              console.log('Single transaction verified:', JSON.stringify({
+                hash: txHash,
+                ERC20Transfers: txDiagnostics.transferItems.length,
+                totalLogs: txDiagnostics.logCount,
+                transferEvents: txDiagnostics.transferEventCount
+              }));
               const resolvedDecimals = await page.evaluate(async () => resolveTokenDecimals({
                 token: { address_hash: '0x50B1eF6e0fe05a32F3E63F02f3c0151BD9004C7c' },
                 total: { value: '1000000000000000000' }
