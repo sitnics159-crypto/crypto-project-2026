@@ -22,10 +22,15 @@
 - PR #25 — **Document the continuous evolution principle** — open, not merged.
   - Scope: development lifecycle, Innovation & Development Center responsibilities, safety, traceability, review, and rollback expectations.
   - URL: https://github.com/sitnics159-crypto/crypto-project-2026/pull/25
+- PR #26 — **Add interruption-safe continuous development system** — open, not merged.
+  - Branch: `docs/continuous-development-system`
+  - Head SHA: `48c125e02ded982da5e588aacb5191fac262b311`
+  - Adds this checkpoint and `.github/CONTINUOUS_DEVELOPMENT_SYSTEM.md`; documentation only.
+  - URL: https://github.com/sitnics159-crypto/crypto-project-2026/pull/26
 
 ## Known work queue (revalidate before acting)
 1. Review PR #24 diff, current head SHA, and required CI checks; merge only when all required checks and review criteria pass.
-2. Review PR #25 and avoid duplicating its development-principle documentation.
+2. Review PR #25 and PR #26; avoid duplicating their documentation and merge only after review.
 3. Finish protecting `main` with a ruleset. Previous attempt to configure the ruleset was interrupted; do not assume it was saved or active.
 4. Pin GitHub Actions to reviewed immutable commit SHAs and pin Playwright/browser versions.
 5. Move core tests out of workflow-only logic so they can be run locally and in CI.
@@ -39,8 +44,8 @@
 ## This CDS documentation branch
 - Branch: `docs/continuous-development-system`
 - Added: `.github/CONTINUOUS_DEVELOPMENT_SYSTEM.md`
-- This checkpoint is being added in the same branch.
-- These documentation changes are not yet merged into `main`.
+- Added: `docs/DEVELOPMENT_CHECKPOINT.md`
+- PR #26 is open; these documentation changes are not yet merged into `main`.
 
 ## Next action
-Refresh live GitHub state, then inspect PR #24's full diff, head SHA, and latest Validate/Browser smoke runs. Do not merge automatically. After that, review PR #25 and proceed to the main-branch ruleset only after confirming the current GitHub settings state.
+Refresh live GitHub state, then inspect PR #24's full diff, head SHA, and latest Validate/Browser smoke runs. Do not merge automatically. After that, review PR #25 and PR #26, then proceed to the main-branch ruleset only after confirming the current GitHub settings state.
