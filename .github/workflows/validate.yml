@@ -3,7 +3,7 @@ name: Validate static site
 on:
   push:
     branches:
-      - fix/erc20-transfer-accuracy-2026
+      - '**'
   pull_request:
     branches:
       - main
