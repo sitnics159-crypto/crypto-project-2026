@@ -68,6 +68,7 @@ jobs:
                 const amountInvalidDecimals = tokenAmount({ total: { value: '12345', decimals: '256' } });
                 const amountMissingDecimals = tokenAmount({ total: { value: '12345' } });
                 const amountMetadataFallback = tokenAmount({ total: { value: '1', decimals: '256' }, token: { decimals: '18' } });
+                const eventAmountInvalidDecimalsFallback = tokenEventAmount({ total: { value: '1', decimals: '256' } }, { decimals: '18', symbol: 'TEST' });
                 const contractTokenType = transactionTypeLabel({ transaction_types: ['token_transfer'], to: { is_contract: true }, value: '0' });
                 const formulaCell = csvCell('=HYPERLINK("https://example.com")');
                 tokenTransferAddress = '0x' + 'a'.repeat(40);
@@ -98,13 +99,14 @@ jobs:
                 tokenTransferItems = saved.items; tokenTransferNext = saved.next; tokenTransferVisible = saved.visible;
                 tokenTransferFilter = saved.filter; tokenTransferAddress = saved.address;
                 renderTokenTransferList();
-                return { amountZeroDecimals, amountTiny, amountInvalidDecimals, amountMissingDecimals, amountMetadataFallback, contractTokenType, localPaginationVisible, formulaCell, incoming, outgoing };
+                return { amountZeroDecimals, amountTiny, amountInvalidDecimals, amountMissingDecimals, amountMetadataFallback, eventAmountInvalidDecimalsFallback, contractTokenType, localPaginationVisible, formulaCell, incoming, outgoing };
               });
               if (edgeCases.amountZeroDecimals !== '12345') throw new Error('Zero-decimals token amount failed: ' + edgeCases.amountZeroDecimals);
               if (edgeCases.amountTiny !== '0.000000000000000001') throw new Error('Tiny ERC-20 amount lost precision: ' + edgeCases.amountTiny);
               if (!edgeCases.amountInvalidDecimals.includes('decimals недоступен')) throw new Error('Invalid decimals were not rejected safely');
               if (!edgeCases.amountMissingDecimals.includes('decimals недоступен')) throw new Error('Missing decimals were not handled safely');
               if (edgeCases.amountMetadataFallback !== '0.000000000000000001') throw new Error('Invalid event decimals did not fall back to valid token metadata: ' + edgeCases.amountMetadataFallback);
+              if (edgeCases.eventAmountInvalidDecimalsFallback !== '0.000000000000000001 TEST') throw new Error('Transaction event amount did not fall back to valid token metadata: ' + edgeCases.eventAmountInvalidDecimalsFallback);
               if (edgeCases.contractTokenType !== 'Перевод токена') throw new Error('ERC-20 transfer to a contract was misclassified: ' + edgeCases.contractTokenType);
               if (edgeCases.localPaginationVisible !== 8) throw new Error('Show-more did not reveal remaining items already loaded from the first page: ' + edgeCases.localPaginationVisible);
               if (edgeCases.incoming.join(',') !== '0x2' || edgeCases.outgoing.join(',') !== '0x3') {

@@ -102,7 +102,7 @@ function formatFeeDisplay(value){
 }
 function updateTransactionFeeEstimate(){if(lastTransactionFeeWei!==null)put('#r-fee',formatFeeDisplay(lastTransactionFeeWei))}
 function tokenEventAmount(event,token){
- const total=event&&event.total&&typeof event.total==='object'?event.total:{},raw=total.value,decimalsValue=total.decimals??(token&&token.decimals);
+ const total=event&&event.total&&typeof event.total==='object'?event.total:{},raw=total.value,decimalsValue=validTokenDecimals(total.decimals)??validTokenDecimals(token&&token.decimals);
  if(raw===null||raw===undefined)return 'Количество не указано источником';
  if(decimalsValue===null||decimalsValue===undefined)return 'Не удалось определить количество токенов: Blockscout не вернул decimals. Исходное значение: '+String(raw);
  try{const decimals=Number(decimalsValue);if(!Number.isInteger(decimals)||decimals<0||decimals>255)throw Error('invalid-decimals');const value=BigInt(String(raw)),base=10n**BigInt(decimals),whole=value/base,fraction=(value%base).toString().padStart(decimals,'0').replace(/0+$/,'');return whole.toString()+(fraction?'.'+fraction:'')+(token&&token.symbol?' '+token.symbol:'')}catch{return 'Количество не удалось прочитать. Исходное значение: '+String(raw)}
