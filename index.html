@@ -134,6 +134,7 @@ const ADDRESS_RE=/^0x[0-9a-fA-F]{40}$/;
 let addressTxItems=[],addressTxNext=null,addressTxVisible=5,addressTxLoading=false,addressTxLoadError='';
 let addressTxCurrent='';
 let tokenTransferAddress='',tokenTransferItems=[],tokenTransferNext=null,tokenTransferFilter='all',tokenTransferVisible=5,tokenTransferLoading=false,tokenTransferLoadError='';
+let addressLookupGeneration=0,addressLookupController=null,addressTxGeneration=0,addressTxController=null,tokenTransferGeneration=0,tokenTransferController=null;
 const tokenFilterButtons=[...document.querySelectorAll('[data-token-filter]')],tokenLoadMore=document.querySelector('#token-load-more'),tokenListStatus=document.querySelector('#token-list-status'),tokenList=document.querySelector('#address-token-transfers'),tokenExport=document.querySelector('#token-export'),tokenExportStatus=document.querySelector('#token-export-status');
 function validTokenDecimals(value){
  if(value===null||value===undefined||value==='')return null;
@@ -196,14 +197,31 @@ async function loadMoreTokenTransfers(){
   tokenTransferLoadError='';renderTokenTransferList();return
  }
  if(!tokenTransferNext)return;
+ const requestAddress=tokenTransferAddress,requestId=++tokenTransferGeneration,nextPage={...tokenTransferNext};
+ const controller=new AbortController();if(tokenTransferController)tokenTransferController.abort();tokenTransferController=controller;
  tokenTransferLoading=true;tokenTransferLoadError='';tokenLoadMore.disabled=true;tokenLoadMore.textContent='Загружаем…';
- const params=new URLSearchParams();for(const [key,value] of Object.entries(tokenTransferNext))if(value!==null&&value!==undefined)params.set(key,String(value));params.set('type','ERC-20');
- const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),15000);
- try{const response=await fetch(ADDRESS_API+encodeURIComponent(tokenTransferAddress)+'/token-transfers?'+params.toString(),{headers:{Accept:'application/json'},signal:controller.signal});if(response.status===429)throw Error('rate-limit');if(!response.ok)throw Error('service');const data=await response.json();if(!Array.isArray(data.items))throw Error('incomplete');const seen=new Set(tokenTransferItems.map(item=>String(item.transaction_hash).toLowerCase()+':'+String(item.log_index??'')+':'+String(item.token&&item.token.address_hash||'').toLowerCase()));for(const item of data.items){if(!item||typeof item.transaction_hash!=='string')continue;const key=item.transaction_hash.toLowerCase()+':'+String(item.log_index??'')+':'+String(item.token&&item.token.address_hash||'').toLowerCase();if(!seen.has(key)){tokenTransferItems.push(item);seen.add(key)}}tokenTransferLoadError='';tokenTransferNext=data.next_page_params||null;tokenTransferVisible=Math.min(tokenTransferVisible+5,filteredTokenTransfers().length);renderTokenTransferList()}
- catch(err){tokenTransferLoadError=err.name==='AbortError'?'Запрос выполняется слишком долго. Нажмите «Показать ещё» для повтора.':err.message==='rate-limit'?'Blockscout ограничил частоту запросов. Попробуйте ещё раз чуть позже.':'Не удалось загрузить следующую страницу переводов. Нажмите для повтора.';tokenLoadMore.hidden=false}
- finally{clearTimeout(timeout);tokenTransferLoading=false;tokenLoadMore.disabled=false;tokenLoadMore.textContent='Показать ещё переводы';renderTokenTransferList()}
+ const params=new URLSearchParams();for(const [key,value] of Object.entries(nextPage))if(value!==null&&value!==undefined)params.set(key,String(value));params.set('type','ERC-20');
+ const timeout=setTimeout(()=>controller.abort(),15000);
+ try{
+  const response=await fetch(ADDRESS_API+encodeURIComponent(requestAddress)+'/token-transfers?'+params.toString(),{headers:{Accept:'application/json'},signal:controller.signal});
+  if(response.status===429)throw Error('rate-limit');if(!response.ok)throw Error('service');
+  const data=await response.json();if(!Array.isArray(data.items))throw Error('incomplete');
+  if(requestId!==tokenTransferGeneration||requestAddress!==tokenTransferAddress)return;
+  const seen=new Set(tokenTransferItems.map(item=>String(item.transaction_hash).toLowerCase()+':'+String(item.log_index??'')+':'+String(item.token&&item.token.address_hash||'').toLowerCase()));
+  for(const item of data.items){if(!item||typeof item.transaction_hash!=='string')continue;const key=item.transaction_hash.toLowerCase()+':'+String(item.log_index??'')+':'+String(item.token&&item.token.address_hash||'').toLowerCase();if(!seen.has(key)){tokenTransferItems.push(item);seen.add(key)}}
+  tokenTransferLoadError='';tokenTransferNext=data.next_page_params||null;tokenTransferVisible=Math.min(tokenTransferVisible+5,filteredTokenTransfers().length);renderTokenTransferList()
+ }catch(err){
+  if(requestId!==tokenTransferGeneration||requestAddress!==tokenTransferAddress)return;
+  tokenTransferLoadError=err.name==='AbortError'?'Запрос выполняется слишком долго. Нажмите «Показать ещё» для повтора.':err.message==='rate-limit'?'Blockscout ограничил частоту запросов. Попробуйте ещё раз чуть позже.':'Не удалось загрузить следующую страницу переводов. Нажмите для повтора.';tokenLoadMore.hidden=false
+ }finally{
+  clearTimeout(timeout);
+  if(requestId===tokenTransferGeneration&&requestAddress===tokenTransferAddress){
+   tokenTransferLoading=false;if(tokenTransferController===controller)tokenTransferController=null;
+   tokenLoadMore.disabled=false;tokenLoadMore.textContent='Показать ещё переводы';renderTokenTransferList()
+  }
+ }
 }
-tokenFilterButtons.forEach(button=>button.addEventListener('click',()=>{tokenTransferFilter=button.dataset.tokenFilter;tokenTransferVisible=5;tokenFilterButtons.forEach(item=>item.setAttribute('aria-pressed',String(item===button)));renderTokenTransferList()}));
+tokenFilterButtons.forEach(button=>tokenFilterButtons.forEach(button=>button.addEventListener('click',()=>{tokenTransferFilter=button.dataset.tokenFilter;tokenTransferVisible=5;tokenFilterButtons.forEach(item=>item.setAttribute('aria-pressed',String(item===button)));renderTokenTransferList()}));
 tokenLoadMore.addEventListener('click',loadMoreTokenTransfers);
 function csvCell(value){let text=String(value??'');if(/^[=+@\- \t\r]/.test(text))text="'"+text;return '"'+text.replaceAll('"','""')+'"'}
 function exactTokenAmount(item){const raw=item.total&&item.total.value,decimals=tokenDecimals(item);if(raw===null||raw===undefined||decimals===null)return '';try{const value=BigInt(String(raw)),base=10n**BigInt(decimals),whole=value/base,fraction=(value%base).toString().padStart(decimals,'0').replace(/0+$/,'');return whole.toString()+(fraction?'.'+fraction:'')}catch{return ''}}
@@ -242,25 +260,43 @@ async function loadMoreAddressTx(){
  addressTxLoadError='';
  if(addressTxVisible<addressTxItems.length){addressTxVisible=Math.min(addressTxVisible+5,addressTxItems.length);renderAddressTxList();return}
  if(!addressTxNext)return;
+ const requestAddress=addressTxCurrent,requestId=++addressTxGeneration,nextPage={...addressTxNext};
+ const controller=new AbortController();if(addressTxController)addressTxController.abort();addressTxController=controller;
  addressTxLoading=true;addressTxLoadMore.disabled=true;addressTxLoadMore.textContent='Загружаем…';addressTxStatus.textContent='Загружаем следующую страницу…';
- const params=new URLSearchParams();for(const [key,value] of Object.entries(addressTxNext))if(value!==null&&value!==undefined)params.set(key,String(value));
- const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),15000);
+ const params=new URLSearchParams();for(const [key,value] of Object.entries(nextPage))if(value!==null&&value!==undefined)params.set(key,String(value));
+ const timeout=setTimeout(()=>controller.abort(),15000);
  try{
-  const response=await fetch(ADDRESS_API+encodeURIComponent(addressTxCurrent)+'/transactions?'+params.toString(),{headers:{Accept:'application/json'},signal:controller.signal});
+  const response=await fetch(ADDRESS_API+encodeURIComponent(requestAddress)+'/transactions?'+params.toString(),{headers:{Accept:'application/json'},signal:controller.signal});
   if(response.status===429)throw Error('rate-limit');if(!response.ok)throw Error('service');
   const data=await response.json();if(!Array.isArray(data.items))throw Error('incomplete');
+  if(requestId!==addressTxGeneration||requestAddress!==addressTxCurrent)return;
   const seen=new Set(addressTxItems.map(tx=>tx.hash));for(const tx of data.items)if(tx&&typeof tx.hash==='string'&&!seen.has(tx.hash)){addressTxItems.push(tx);seen.add(tx.hash)}
   addressTxNext=data.next_page_params||null;addressTxVisible=Math.min(addressTxVisible+5,addressTxItems.length);addressTxLoadError='';
- }catch(err){addressTxLoadError=err.name==='AbortError'?'Запрос выполняется слишком долго. Нажмите «Показать ещё транзакции» для повтора.':err.message==='rate-limit'?'Blockscout ограничил частоту запросов. Попробуйте ещё раз чуть позже.':'Не удалось загрузить следующую страницу. Нажмите для повтора.'}
- finally{clearTimeout(timeout);addressTxLoading=false;addressTxLoadMore.textContent='Показать ещё транзакции';renderAddressTxList()}
+ }catch(err){
+  if(requestId!==addressTxGeneration||requestAddress!==addressTxCurrent)return;
+  addressTxLoadError=err.name==='AbortError'?'Запрос выполняется слишком долго. Нажмите «Показать ещё транзакции» для повтора.':err.message==='rate-limit'?'Blockscout ограничил частоту запросов. Попробуйте ещё раз чуть позже.':'Не удалось загрузить следующую страницу. Нажмите для повтора.'
+ }finally{
+  clearTimeout(timeout);
+  if(requestId===addressTxGeneration&&requestAddress===addressTxCurrent){
+   addressTxLoading=false;if(addressTxController===controller)addressTxController=null;
+   addressTxLoadMore.textContent='Показать ещё транзакции';renderAddressTxList()
+  }
+ }
 }
-addressTxLoadMore.addEventListener('click',loadMoreAddressTx);
+addressTxLoadMore.addEventListener('click',loadMoreAddressTx);addressTxLoadMore.addEventListener('click',loadMoreAddressTx);
 addressForm.addEventListener('submit',async event=>{
- event.preventDefault();addressError.hidden=true;addressResult.hidden=true;addressTxList.replaceChildren();addressTxItems=[];addressTxNext=null;addressTxVisible=5;addressTxLoadError='';addressTxCurrent='';
+ event.preventDefault();
+ const requestId=++addressLookupGeneration;
+ if(addressLookupController)addressLookupController.abort();addressLookupController=null;
+ ++addressTxGeneration;if(addressTxController)addressTxController.abort();addressTxController=null;addressTxLoading=false;addressTxLoadMore.disabled=false;addressTxLoadMore.textContent='Показать ещё транзакции';
+ ++tokenTransferGeneration;if(tokenTransferController)tokenTransferController.abort();tokenTransferController=null;tokenTransferLoading=false;tokenLoadMore.disabled=false;tokenLoadMore.textContent='Показать ещё переводы';
+ addressButton.disabled=false;addressLoading.hidden=true;
+ addressError.hidden=true;addressResult.hidden=true;addressTxList.replaceChildren();addressTxItems=[];addressTxNext=null;addressTxVisible=5;addressTxLoadError='';addressTxCurrent='';
+ tokenTransferAddress='';tokenTransferItems=[];tokenTransferNext=null;tokenTransferVisible=5;tokenTransferLoadError='';tokenTransferFilter='all';renderTokenTransferList();
  const address=addressInput.value.trim();
  if(!ADDRESS_RE.test(address)){addressError.textContent='Введите адрес Sepolia: 0x и 40 шестнадцатеричных символов.';addressError.hidden=false;addressInput.focus();return}
  setShareableLookup('address',address);addressButton.disabled=true;addressLoading.hidden=false;
- const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),15000);
+ const controller=new AbortController();addressLookupController=controller;const timeout=setTimeout(()=>controller.abort(),15000);
  try{
   const base=ADDRESS_API+encodeURIComponent(address);addressTxCurrent=address;
   const responses=await Promise.all([fetch(base,{headers:{Accept:'application/json'},signal:controller.signal}),fetch(base+'/transactions',{headers:{Accept:'application/json'},signal:controller.signal}),fetch(base+'/token-transfers?type=ERC-20',{headers:{Accept:'application/json'},signal:controller.signal})]);
@@ -268,21 +304,30 @@ addressForm.addEventListener('submit',async event=>{
   if(responses.some(r=>r.status===429))throw Error('rate-limit');
   if(responses.some(r=>!r.ok))throw Error('service');
   const [info,activity,tokenActivity]=await Promise.all(responses.map(r=>r.json()));
+  if(requestId!==addressLookupGeneration)return;
   if(!info||!info.hash||!Array.isArray(activity.items)||!Array.isArray(tokenActivity.items))throw Error('incomplete');
   put('#a-hash',info.hash);put('#a-balance',weiToEth(info.coin_balance));put('#a-type',info.is_contract?'Смарт-контракт':'Обычный адрес');put('#a-scam-label',info.is_scam===true?'Blockscout помечает как потенциально мошеннический':'Метка Blockscout scam не показана; это не подтверждает безопасность адреса');
   const flags=[];if(info.has_tokens)flags.push('есть токены');if(info.has_token_transfers)flags.push('есть переводы токенов');put('#a-tokens',flags.length?flags.join(' · '):'не обнаружены обозревателем');
-  addressTxItems=activity.items.filter(tx=>tx&&typeof tx.hash==='string');addressTxNext=activity.next_page_params||null;addressTxVisible=5;addressTxLoadError='';renderAddressTxList()
-  tokenTransferAddress=address;tokenTransferItems=tokenActivity.items.filter(item=>item&&typeof item.transaction_hash==='string');tokenTransferNext=tokenActivity.next_page_params||null;tokenTransferFilter='all';tokenTransferVisible=5;tokenTransferLoadError='';tokenFilterButtons.forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.tokenFilter==='all')));renderTokenTransferList()
+  addressTxItems=activity.items.filter(tx=>tx&&typeof tx.hash==='string');addressTxNext=activity.next_page_params||null;addressTxVisible=5;addressTxLoadError='';renderAddressTxList();
+  tokenTransferAddress=address;tokenTransferItems=tokenActivity.items.filter(item=>item&&typeof item.transaction_hash==='string');tokenTransferNext=tokenActivity.next_page_params||null;tokenTransferFilter='all';tokenTransferVisible=5;tokenTransferLoadError='';tokenFilterButtons.forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.tokenFilter==='all')));renderTokenTransferList();
   document.querySelector('#address-explorer').href='https://eth-sepolia.blockscout.com/address/'+encodeURIComponent(address);
   addressResult.hidden=false;
  }catch(err){
+  if(requestId!==addressLookupGeneration)return;
   if(err.name==='AbortError')addressError.textContent='Источник данных отвечает слишком долго. Повторите запрос позже.';
   else if(err.message==='not-found')addressError.textContent='Адрес не найден в Sepolia. Проверьте ввод.';
   else if(err.message==='rate-limit')addressError.textContent='Слишком много запросов. Подождите и повторите.';
   else if(err.message==='incomplete')addressError.textContent='Источник вернул неполные данные. Попробуйте позже.';
   else addressError.textContent='Не удалось получить данные Blockscout. Проверьте соединение и повторите.';
   addressError.hidden=false;
- }finally{clearTimeout(timeout);addressButton.disabled=false;addressLoading.hidden=true}
+ }finally{
+  clearTimeout(timeout);
+  if(requestId===addressLookupGeneration){
+   if(addressLookupController===controller)addressLookupController=null;
+   addressButton.disabled=false;addressLoading.hidden=true
+  }
+ }
+});
 });
 const MARKET_API='https://api.kraken.com/0/public/Ticker?pair=XBTUSD,ETHUSD';const MARKET_OHLC_API='https://api.kraken.com/0/public/OHLC?interval=60&since=';
 const marketRefresh=document.querySelector('#market-refresh'),marketStatus=document.querySelector('#market-status');
