@@ -221,7 +221,7 @@ async function loadMoreTokenTransfers(){
   }
  }
 }
-tokenFilterButtons.forEach(button=>tokenFilterButtons.forEach(button=>button.addEventListener('click',()=>{tokenTransferFilter=button.dataset.tokenFilter;tokenTransferVisible=5;tokenFilterButtons.forEach(item=>item.setAttribute('aria-pressed',String(item===button)));renderTokenTransferList()}));
+tokenFilterButtons.forEach(button=>button.addEventListener('click',()=>{tokenTransferFilter=button.dataset.tokenFilter;tokenTransferVisible=5;tokenFilterButtons.forEach(item=>item.setAttribute('aria-pressed',String(item===button)));renderTokenTransferList()}));
 tokenLoadMore.addEventListener('click',loadMoreTokenTransfers);
 function csvCell(value){let text=String(value??'');if(/^[=+@\- \t\r]/.test(text))text="'"+text;return '"'+text.replaceAll('"','""')+'"'}
 function exactTokenAmount(item){const raw=item.total&&item.total.value,decimals=tokenDecimals(item);if(raw===null||raw===undefined||decimals===null)return '';try{const value=BigInt(String(raw)),base=10n**BigInt(decimals),whole=value/base,fraction=(value%base).toString().padStart(decimals,'0').replace(/0+$/,'');return whole.toString()+(fraction?'.'+fraction:'')}catch{return ''}}
