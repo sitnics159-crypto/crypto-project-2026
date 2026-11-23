@@ -42,9 +42,9 @@
 
 ## Open pull requests — do not merge without explicit user approval
 
-- PR #29 — **Finalize development checkpoint after PR #27 merge** — OPEN.
-  - Updates this checkpoint file.
-  - Check the current PR status checks directly before merge; this checkpoint does not store its own head SHA.
+- PR #29 — **Finalize development checkpoint after PR #27 merge** — OPEN, not merged.
+  - Updates this checkpoint file; current head SHA: `a531d7269c311f50b66f9f8a7b22f6a654930117`.
+  - `validate` and `browser-smoke` both passed on this exact head SHA.
   - URL: https://github.com/sitnics159-crypto/crypto-project-2026/pull/29
 - PR #30 — **Harden token metadata retries and pin CI dependencies** — OPEN, not merged.
   - Branch: `fix/token-metadata-retry-and-ci-pins-2026-11-23`.
@@ -65,8 +65,8 @@
   - Branch: `docs/security-policy-2026-11-23`.
   - Head SHA: `0bc0c8b83049770160befd80898d4392b58d1a1f`.
   - Adds `SECURITY.md` with private-first disclosure instructions and a fallback that avoids public disclosure of technical details.
-  - `validate` and `browser-smoke` checks are running; verify their final result before merge.
-  - GitHub private vulnerability reporting enablement remains unverified and must be checked in repository Settings.
+  - `validate` and `browser-smoke` both passed on this exact head SHA.
+  - GitHub private vulnerability reporting is now enabled in repository Settings (confirmed by the visible `Disable` control).
   - URL: https://github.com/sitnics159-crypto/crypto-project-2026/pull/33
 
 ## CI and GitHub Pages status
@@ -114,15 +114,15 @@
 - Issue #31 tracks stale-response races and is addressed by open PR #32. The fix adds request-generation guards and aborts superseded address and pagination requests; delayed-response regression coverage is included. Issue #31 remains open until PR #32 is merged. URL: https://github.com/sitnics159-crypto/crypto-project-2026/issues/31.
 - Consider separating deterministic unit tests from live-API smoke tests so upstream API outages do not obscure application regressions.
 - If stronger CSP and response security headers are required, evaluate hosting with configurable response headers rather than assuming GitHub Pages can set them per repository.
-- PR #33 adds `SECURITY.md`, but verify and enable GitHub private vulnerability reporting in repository Settings before treating private reporting as available.
+- PR #33 adds `SECURITY.md`; GitHub private vulnerability reporting is enabled in repository Settings, confirmed by the visible `Disable` control.
 - Choose an appropriate project license before adding a `LICENSE`; do not assume one.
 
 ## Priority work queue
 
-1. Review PRs #29, #30, #32, and #33; do not merge without explicit user approval.
-2. Verify/enable GitHub private vulnerability reporting in repository Settings; PR #33 documents the fallback if the feature is unavailable.
-3. Verify GitHub Pages deployment after an approved merge.
-4. Consider deterministic unit-test separation and a host/CDN with configurable security response headers if required.
+1. Review PRs #29, #30, #32, and #33; all four currently have successful `validate` and `browser-smoke` checks on their exact heads. Do not merge without explicit user approval.
+2. After an approved merge, verify GitHub Pages deployment and the published application.
+3. Consider separating deterministic unit tests from live-API smoke tests so upstream outages do not obscure application regressions.
+4. Evaluate hosting with configurable response headers if strict CSP/security headers become a release requirement.
 5. Choose an appropriate project license and complete a measurable MVP 1.0 release checklist.
 
 
@@ -136,4 +136,4 @@
 
 ## Next action
 
-Review the open PRs and their current checks; verify private vulnerability reporting settings; wait for explicit approval before merging any PR.
+All four open PRs (#29, #30, #32, #33) currently pass `validate` and `browser-smoke`; private vulnerability reporting is enabled. Review PR contents and wait for explicit user approval before merging any PR.
