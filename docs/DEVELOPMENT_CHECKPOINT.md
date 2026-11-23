@@ -43,7 +43,7 @@
 ## Open pull requests — do not merge without explicit user approval
 
 - PR #29 — **Finalize development checkpoint after PR #27 merge** — OPEN, not merged.
-  - Updates this checkpoint file; current head SHA: `a531d7269c311f50b66f9f8a7b22f6a654930117`.
+  - Updates this checkpoint file; current head SHA: `d5e0376c479d2caba7a80419454fdd3bac2a8959`.
   - `validate` and `browser-smoke` both passed on this exact head SHA.
   - URL: https://github.com/sitnics159-crypto/crypto-project-2026/pull/29
 - PR #30 — **Harden token metadata retries and pin CI dependencies** — OPEN, not merged.
