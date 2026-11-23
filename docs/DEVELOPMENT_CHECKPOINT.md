@@ -44,9 +44,7 @@
 
 - PR #29 — **Finalize development checkpoint after PR #27 merge** — OPEN.
   - Updates this checkpoint file.
-  - Final verified head SHA: `c3c7525e62b086c9b2614b824173a0ba3ef781e3`.
-  - `validate` passed: run [45135798957](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45135798957).
-  - `browser-smoke` passed: run [45135798946](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45135798946).
+  - Check the current PR status checks directly before merge; this checkpoint does not store its own head SHA.
   - URL: https://github.com/sitnics159-crypto/crypto-project-2026/pull/29
 - PR #30 — **Harden token metadata retries and pin CI dependencies** — OPEN, not merged.
   - Branch: `fix/token-metadata-retry-and-ci-pins-2026-11-23`.
