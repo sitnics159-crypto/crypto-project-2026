@@ -126,6 +126,83 @@ jobs:
               const market = await page.locator('#market-status').innerText();
               console.log('Market status:', market);
 
+              const raceResults = await page.evaluate(async () => {
+                const originalFetch = window.fetch;
+                const addressA = '0x' + 'a'.repeat(40);
+                const addressB = '0x' + 'b'.repeat(40);
+                const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+                const makeResponse = payload => ({ ok: true, status: 200, json: async () => payload });
+                const makePayload = (address, kind, isPage) => {
+                  if (kind === 'info') return { hash: address, coin_balance: '0', is_contract: false };
+                  if (kind === 'transactions') return {
+                    items: [{ hash: address + (isPage ? '-late-tx' : '-first-tx'), value: '0', block_number: 1 }],
+                    next_page_params: isPage ? null : (address === addressA ? { block_number: 123, index: 0 } : null)
+                  };
+                  return {
+                    items: [{
+                      transaction_hash: address + (isPage ? '-late-token' : '-first-token'),
+                      token_type: 'ERC-20', log_index: isPage ? 2 : 1,
+                      from: { hash: address }, to: { hash: '0x' + 'c'.repeat(40) },
+                      token: { address_hash: '0x' + 'd'.repeat(40), symbol: 'RACE' },
+                      total: { value: '1', decimals: '0' }
+                    }],
+                    next_page_params: isPage ? null : (address === addressA ? { block_number: 123, index: 0 } : null)
+                  };
+                };
+                window.fetch = async url => {
+                  const parsed = new URL(String(url));
+                  const match = parsed.pathname.match(/\/addresses\/(0x[a-f0-9]{40})(?:\/(transactions|token-transfers))?$/i);
+                  if (!match) return originalFetch(url);
+                  const address = match[1].toLowerCase();
+                  const endpoint = match[2] || 'info';
+                  const isPage = parsed.searchParams.has('block_number');
+                  if (address === addressA && (isPage || !isPage)) await delay(isPage ? 320 : 260);
+                  else await delay(10);
+                  return makeResponse(makePayload(address, endpoint, isPage));
+                };
+                const submit = address => {
+                  addressInput.value = address;
+                  addressForm.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+                };
+                const waitFor = async predicate => {
+                  for (let i = 0; i < 200; i++) { if (predicate()) return; await delay(5); }
+                  throw new Error('Timed out waiting for mocked address lookup');
+                };
+                try {
+                  submit(addressA);
+                  await delay(20);
+                  submit(addressB);
+                  await waitFor(() => !addressResult.hidden && document.querySelector('#a-hash').textContent.toLowerCase() === addressB);
+                  await delay(300);
+                  const staleInitialIgnored =
+                    document.querySelector('#a-hash').textContent.toLowerCase() === addressB &&
+                    addressTxItems.length === 1 && addressTxItems[0].hash === addressB + '-first-tx' &&
+                    tokenTransferAddress === addressB && tokenTransferItems.length === 1 &&
+                    tokenTransferItems[0].transaction_hash === addressB + '-first-token';
+
+                  submit(addressA);
+                  await waitFor(() => !addressResult.hidden && document.querySelector('#a-hash').textContent.toLowerCase() === addressA);
+                  const oldTxPage = loadMoreAddressTx();
+                  const oldTokenPage = loadMoreTokenTransfers();
+                  await delay(20);
+                  submit(addressB);
+                  await waitFor(() => !addressResult.hidden && document.querySelector('#a-hash').textContent.toLowerCase() === addressB);
+                  await Promise.all([oldTxPage, oldTokenPage]);
+                  const stalePagesIgnored =
+                    document.querySelector('#a-hash').textContent.toLowerCase() === addressB &&
+                    addressTxItems.length === 1 && addressTxItems[0].hash === addressB + '-first-tx' &&
+                    tokenTransferAddress === addressB && tokenTransferItems.length === 1 &&
+                    tokenTransferItems[0].transaction_hash === addressB + '-first-token' &&
+                    !addressTxLoading && !tokenTransferLoading;
+                  return { staleInitialIgnored, stalePagesIgnored };
+                } finally {
+                  window.fetch = originalFetch;
+                }
+              });
+              if (!raceResults.staleInitialIgnored) throw new Error('A delayed initial lookup overwrote the newer address: ' + JSON.stringify(raceResults));
+              if (!raceResults.stalePagesIgnored) throw new Error('A delayed pagination response overwrote the newer address or loading state: ' + JSON.stringify(raceResults));
+              console.log('Stale address/pagination race regressions passed:', JSON.stringify(raceResults));
+
               const address = '0xd482cCc8EC97e9cA7a365F2403bf7f228aD149A0';
               await page.locator('#address-input').fill(address);
               await page.locator('#address-submit').click();
