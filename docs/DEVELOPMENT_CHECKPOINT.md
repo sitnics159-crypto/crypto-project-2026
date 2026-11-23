@@ -54,6 +54,13 @@
   - `browser-smoke` passed: run [45135531301](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45135531301).
   - Regression log confirmed metadata retry result `firstAttempt=null, secondAttempt=18, attempts=2`; CSV formula cases for direct, newline-prefixed, and full-width formula operators passed.
   - URL: https://github.com/sitnics159-crypto/crypto-project-2026/pull/30
+- PR #32 — **Prevent stale address and pagination responses** — OPEN, not merged.
+  - Branch: `fix/stale-address-request-guards-2026-11-23`.
+  - Head SHA: `ded87a68b90f5bda6c8f5f076e24abc8caf508e9`.
+  - Adds request-generation and abort guards for address lookup and both pagination flows; includes delayed-response regression coverage.
+  - `validate` and `browser-smoke` both passed on this exact head SHA.
+  - Closes issue #31 after merge.
+  - URL: https://github.com/sitnics159-crypto/crypto-project-2026/pull/32
 
 ## CI and GitHub Pages status
 
@@ -65,11 +72,11 @@
 
 ## Repository protection
 
-- Latest direct GitHub read: `main.protected=false`.
-- Repository rulesets endpoint returned an empty list (`[]`).
-- `Protect main` is NOT configured. Do not claim that `main` is protected.
-- The available GitHub connector supports reading rulesets and branch protection but exposes no create/update ruleset action. Saving the ruleset still requires the GitHub repository Settings UI and independent verification.
-- Intended ruleset: active, target `main`, no bypass actors, require pull requests, require successful `validate` and `browser-smoke` checks, block force pushes and branch deletion. Avoid requiring approvals if there is no independent reviewer.
+- `Protect main` is configured and Active for target branch `main`.
+- Bypass list is empty; GitHub reports `current_user_can_bypass: never`.
+- Enabled rules: branch deletion restriction, non-fast-forward/force-push restriction, pull-request requirement, and required status checks.
+- Required checks: `validate` and `browser-smoke`; strict required-status-check policy is enabled.
+- Direct GitHub API verification on 2026-11-23 confirmed the saved ruleset. Do not describe `main` as unprotected.
 
 ## Security and API audit
 
@@ -96,7 +103,7 @@
 
 ### Remaining audit work
 
-- Issue #31 tracks stale-response races: if a user changes the address while a pagination request for the previous address is in flight, the old response may update shared arrays/state for the new address. Add request-generation guards or abort prior requests and cover with regression tests. URL: https://github.com/sitnics159-crypto/crypto-project-2026/issues/31.
+- Issue #31 tracks stale-response races and is addressed by open PR #32. The fix adds request-generation guards and aborts superseded address and pagination requests; delayed-response regression coverage is included. Issue #31 remains open until PR #32 is merged. URL: https://github.com/sitnics159-crypto/crypto-project-2026/issues/31.
 - Consider separating deterministic unit tests from live-API smoke tests so upstream API outages do not obscure application regressions.
 - Review CSP/security headers appropriate for a static GitHub Pages deployment.
 - Add a `SECURITY.md` with a verified reporting route.
@@ -104,11 +111,11 @@
 
 ## Priority work queue
 
-1. Configure and independently verify the `Protect main` ruleset through repository Settings.
-2. Review PR #29 and PR #30; do not merge either without explicit user approval.
-3. Resolve [issue #31](https://github.com/sitnics159-crypto/crypto-project-2026/issues/31): fix stale address/pagination responses and add deterministic regression coverage.
-4. Verify GitHub Pages deployment after the next approved merge.
-5. Continue the API/security audit and complete a measurable MVP 1.0 release checklist.
+1. Review PRs #29, #30, and #32; do not merge without explicit user approval.
+2. Verify GitHub Pages deployment after an approved merge.
+3. Continue the API/security audit: review CSP/security headers, add a verified `SECURITY.md` reporting route, and assess separation of deterministic tests from live-API smoke tests.
+4. Choose an appropriate project license before adding a `LICENSE`; do not assume one.
+5. Complete a measurable MVP 1.0 release checklist.
 
 ## Session protocol
 
@@ -120,4 +127,4 @@
 
 ## Next action
 
-Configure and independently verify the `Protect main` ruleset, then address the stale-response race in address lookup and pagination.
+Review the open PRs and their current checks; wait for explicit approval before merging any PR.
