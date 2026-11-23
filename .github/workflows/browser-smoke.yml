@@ -20,14 +20,14 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
       - name: Install Playwright
         run: |
-          npm install --no-save --no-package-lock playwright
+          npm install --no-save --no-package-lock playwright@1.65.1
           npx playwright install --with-deps chromium
       - name: Start local preview server
         run: |
@@ -102,7 +102,29 @@ jobs:
                 tokenTransferItems = saved.items; tokenTransferNext = saved.next; tokenTransferVisible = saved.visible;
                 tokenTransferFilter = saved.filter; tokenTransferAddress = saved.address;
                 renderTokenTransferList();
-                return { amountZeroDecimals, amountTiny, amountInvalidDecimals, amountMissingDecimals, amountMetadataFallback, eventAmountInvalidDecimalsFallback, contractTokenType, localPaginationVisible, formulaCell, incoming, outgoing };
+                const retryAddress = '0x' + 'c'.repeat(40);
+                tokenMetadataCache.delete(retryAddress.toLowerCase());
+                const originalFetch = window.fetch;
+                let metadataAttempts = 0;
+                window.fetch = async (url, options) => {
+                  if (String(url).includes('/api/v2/tokens/' + retryAddress)) {
+                    metadataAttempts++;
+                    if (metadataAttempts === 1) return { ok: false, status: 503, json: async () => ({}) };
+                    return { ok: true, status: 200, json: async () => ({ decimals: '18' }) };
+                  }
+                  return originalFetch(url, options);
+                };
+                let metadataRetry;
+                try {
+                  const retryItem = { total: { value: '1', decimals: '256' }, token: { address_hash: retryAddress } };
+                  const firstAttempt = await resolveTokenDecimals(retryItem);
+                  const secondAttempt = await resolveTokenDecimals(retryItem);
+                  metadataRetry = { firstAttempt, secondAttempt, attempts: metadataAttempts };
+                } finally {
+                  window.fetch = originalFetch;
+                  tokenMetadataCache.delete(retryAddress.toLowerCase());
+                }
+                return { amountZeroDecimals, amountTiny, amountInvalidDecimals, amountMissingDecimals, amountMetadataFallback, eventAmountInvalidDecimalsFallback, contractTokenType, localPaginationVisible, formulaCell, incoming, outgoing, metadataRetry };
               });
               if (edgeCases.amountZeroDecimals !== '12345') throw new Error('Zero-decimals token amount failed: ' + edgeCases.amountZeroDecimals);
               if (edgeCases.amountTiny !== '0.000000000000000001') throw new Error('Tiny ERC-20 amount lost precision: ' + edgeCases.amountTiny);
@@ -110,6 +132,7 @@ jobs:
               if (!edgeCases.amountMissingDecimals.includes('decimals недоступен')) throw new Error('Missing decimals were not handled safely');
               if (edgeCases.amountMetadataFallback !== '0.000000000000000001') throw new Error('Invalid event decimals did not fall back to valid token metadata: ' + edgeCases.amountMetadataFallback);
               if (edgeCases.eventAmountInvalidDecimalsFallback !== '0.000000000000000001 TEST') throw new Error('Transaction event amount did not fall back to valid token metadata: ' + edgeCases.eventAmountInvalidDecimalsFallback);
+              if (edgeCases.metadataRetry.firstAttempt !== null || edgeCases.metadataRetry.secondAttempt !== 18 || edgeCases.metadataRetry.attempts !== 2) throw new Error('Transient token metadata failure was cached instead of retried: ' + JSON.stringify(edgeCases.metadataRetry));
               if (edgeCases.contractTokenType !== 'Перевод токена') throw new Error('ERC-20 transfer to a contract was misclassified: ' + edgeCases.contractTokenType);
               if (edgeCases.localPaginationVisible !== 8) throw new Error('Show-more did not reveal remaining items already loaded from the first page: ' + edgeCases.localPaginationVisible);
               if (edgeCases.incoming.join(',') !== '0x2' || edgeCases.outgoing.join(',') !== '0x3') {
