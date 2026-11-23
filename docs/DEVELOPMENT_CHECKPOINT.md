@@ -61,6 +61,13 @@
   - `validate` and `browser-smoke` both passed on this exact head SHA.
   - Closes issue #31 after merge.
   - URL: https://github.com/sitnics159-crypto/crypto-project-2026/pull/32
+- PR #33 — **Add a responsible security reporting policy** — OPEN, not merged.
+  - Branch: `docs/security-policy-2026-11-23`.
+  - Head SHA: `0bc0c8b83049770160befd80898d4392b58d1a1f`.
+  - Adds `SECURITY.md` with private-first disclosure instructions and a fallback that avoids public disclosure of technical details.
+  - `validate` and `browser-smoke` checks are running; verify their final result before merge.
+  - GitHub private vulnerability reporting enablement remains unverified and must be checked in repository Settings.
+  - URL: https://github.com/sitnics159-crypto/crypto-project-2026/pull/33
 
 ## CI and GitHub Pages status
 
@@ -96,26 +103,28 @@
 ### Static review of current main
 
 - No `innerHTML`, `outerHTML`, `document.write`, `eval`, or `new Function` use was found in `index.html`.
-- All three links with `target="_blank"` also use `rel="noopener noreferrer"`.
+- All links opened with `target="_blank"` use `rel="noopener noreferrer"`.
 - Dynamic API-derived content is inserted with DOM element creation and `textContent`; explorer URLs use fixed HTTPS hosts and encoded identifiers.
-- Transaction, address, pagination, market, and token-metadata requests use explicit abort timeouts.
+- Transaction, address, pagination, and market requests use explicit abort timeouts. The token-metadata path is being hardened in open PR #30.
+- No Content-Security-Policy meta element is present. GitHub Pages does not offer repository-level configuration for arbitrary response headers; a meta CSP is not equivalent to HTTP response headers and has limitations. Do not add a weak policy with broad `unsafe-inline` allowances as a substitute. Consider hosting with configurable response headers if strict CSP and other security headers become a release requirement.
 - No wallet connection, secret phrase, private key, or transaction signing/sending path is present in the current MVP.
 
 ### Remaining audit work
 
 - Issue #31 tracks stale-response races and is addressed by open PR #32. The fix adds request-generation guards and aborts superseded address and pagination requests; delayed-response regression coverage is included. Issue #31 remains open until PR #32 is merged. URL: https://github.com/sitnics159-crypto/crypto-project-2026/issues/31.
 - Consider separating deterministic unit tests from live-API smoke tests so upstream API outages do not obscure application regressions.
-- Review CSP/security headers appropriate for a static GitHub Pages deployment.
-- Add a `SECURITY.md` with a verified reporting route.
+- If stronger CSP and response security headers are required, evaluate hosting with configurable response headers rather than assuming GitHub Pages can set them per repository.
+- PR #33 adds `SECURITY.md`, but verify and enable GitHub private vulnerability reporting in repository Settings before treating private reporting as available.
 - Choose an appropriate project license before adding a `LICENSE`; do not assume one.
 
 ## Priority work queue
 
-1. Review PRs #29, #30, and #32; do not merge without explicit user approval.
-2. Verify GitHub Pages deployment after an approved merge.
-3. Continue the API/security audit: review CSP/security headers, add a verified `SECURITY.md` reporting route, and assess separation of deterministic tests from live-API smoke tests.
-4. Choose an appropriate project license before adding a `LICENSE`; do not assume one.
-5. Complete a measurable MVP 1.0 release checklist.
+1. Review PRs #29, #30, #32, and #33; do not merge without explicit user approval.
+2. Verify/enable GitHub private vulnerability reporting in repository Settings; PR #33 documents the fallback if the feature is unavailable.
+3. Verify GitHub Pages deployment after an approved merge.
+4. Consider deterministic unit-test separation and a host/CDN with configurable security response headers if required.
+5. Choose an appropriate project license and complete a measurable MVP 1.0 release checklist.
+
 
 ## Session protocol
 
@@ -127,4 +136,4 @@
 
 ## Next action
 
-Review the open PRs and their current checks; wait for explicit approval before merging any PR.
+Review the open PRs and their current checks; verify private vulnerability reporting settings; wait for explicit approval before merging any PR.
