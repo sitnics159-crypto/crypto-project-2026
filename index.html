@@ -283,7 +283,7 @@ async function loadMoreAddressTx(){
   }
  }
 }
-addressTxLoadMore.addEventListener('click',loadMoreAddressTx);addressTxLoadMore.addEventListener('click',loadMoreAddressTx);
+addressTxLoadMore.addEventListener('click',loadMoreAddressTx);
 addressForm.addEventListener('submit',async event=>{
  event.preventDefault();
  const requestId=++addressLookupGeneration;
@@ -327,7 +327,6 @@ addressForm.addEventListener('submit',async event=>{
    addressButton.disabled=false;addressLoading.hidden=true
   }
  }
-});
 });
 const MARKET_API='https://api.kraken.com/0/public/Ticker?pair=XBTUSD,ETHUSD';const MARKET_OHLC_API='https://api.kraken.com/0/public/OHLC?interval=60&since=';
 const marketRefresh=document.querySelector('#market-refresh'),marketStatus=document.querySelector('#market-status');
