@@ -44,6 +44,9 @@
 
 - PR #29 — **Finalize development checkpoint after PR #27 merge** — OPEN.
   - Updates this checkpoint file.
+  - Final verified head SHA: `c3c7525e62b086c9b2614b824173a0ba3ef781e3`.
+  - `validate` passed: run [45135798957](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45135798957).
+  - `browser-smoke` passed: run [45135798946](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45135798946).
   - URL: https://github.com/sitnics159-crypto/crypto-project-2026/pull/29
 - PR #30 — **Harden token metadata retries and pin CI dependencies** — OPEN, not merged.
   - Branch: `fix/token-metadata-retry-and-ci-pins-2026-11-23`.
@@ -95,7 +98,7 @@
 
 ### Remaining audit work
 
-- Investigate stale-response races: if a user changes the address while a pagination request for the previous address is in flight, the old response may update shared arrays/state for the new address. Add request-generation guards or abort prior requests and cover with regression tests.
+- Issue #31 tracks stale-response races: if a user changes the address while a pagination request for the previous address is in flight, the old response may update shared arrays/state for the new address. Add request-generation guards or abort prior requests and cover with regression tests. URL: https://github.com/sitnics159-crypto/crypto-project-2026/issues/31.
 - Consider separating deterministic unit tests from live-API smoke tests so upstream API outages do not obscure application regressions.
 - Review CSP/security headers appropriate for a static GitHub Pages deployment.
 - Add a `SECURITY.md` with a verified reporting route.
@@ -105,7 +108,7 @@
 
 1. Configure and independently verify the `Protect main` ruleset through repository Settings.
 2. Review PR #29 and PR #30; do not merge either without explicit user approval.
-3. Fix the stale-response race in address lookup/pagination and add regression coverage.
+3. Resolve [issue #31](https://github.com/sitnics159-crypto/crypto-project-2026/issues/31): fix stale address/pagination responses and add deterministic regression coverage.
 4. Verify GitHub Pages deployment after the next approved merge.
 5. Continue the API/security audit and complete a measurable MVP 1.0 release checklist.
 
