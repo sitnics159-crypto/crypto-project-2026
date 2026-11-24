@@ -4,6 +4,9 @@ const path = require('node:path');
 
 (async () => {
   const fixture = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'application.json'), 'utf8'));
+  const paginationFixture = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'pagination.json'), 'utf8'));
+  const staleFixture = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'stale-requests.json'), 'utf8'));
+  const apiErrorFixture = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'api-errors.json'), 'utf8'));
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
   page.on('pageerror', error => { throw error; });
@@ -28,12 +31,12 @@ const path = require('node:path');
         fixtureResult.status !== fixture.expected.status ||
         fixtureResult.amount !== fixture.expected.amount ||
         fixtureResult.exactAmount !== fixture.expected.exactAmount ||
-        !fixtureResult.csv.startsWith('"\\'=') ) {
+        !fixtureResult.csv.startsWith("\\\"'=")) {
       throw new Error('Application fixture regression failed: ' + JSON.stringify(fixtureResult));
     }
     console.log('Transaction, token-decimals, and CSV fixtures passed');
 
-    const edgeCases = await page.evaluate(async () => {
+    const edgeCases = await page.evaluate(async (paginationFixture) => {
       const amountZeroDecimals = tokenAmount({ total: { value: '12345', decimals: '0' } });
       const amountTiny = tokenAmount({ total: { value: '1', decimals: '18' } });
       const amountInvalidDecimals = tokenAmount({ total: { value: '12345', decimals: '256' } });
@@ -44,25 +47,15 @@ const path = require('node:path');
       const formulaCell = csvCell('=HYPERLINK("https://example.com")');
       const newlineFormulaCell = csvCell('\n=HYPERLINK("https://example.com")');
       const fullwidthFormulaCell = csvCell('＝HYPERLINK("https://example.com")');
-      tokenTransferAddress = '0x' + 'a'.repeat(40);
-      tokenTransferItems = [
-        { transaction_hash: '0x1', from: { hash: tokenTransferAddress }, to: { hash: tokenTransferAddress }, total: { value: '1', decimals: '0' } },
-        { transaction_hash: '0x2', from: { hash: '0x' + 'b'.repeat(40) }, to: { hash: tokenTransferAddress }, total: { value: '1', decimals: '0' } },
-        { transaction_hash: '0x3', from: { hash: tokenTransferAddress }, to: { hash: '0x' + 'b'.repeat(40) }, total: { value: '1', decimals: '0' } }
-      ];
+      tokenTransferAddress = paginationFixture.address;
+      tokenTransferItems = paginationFixture.filterItems;
       tokenTransferFilter = 'incoming';
       const incoming = filteredTokenTransfers().map(item => item.transaction_hash);
       tokenTransferFilter = 'outgoing';
       const outgoing = filteredTokenTransfers().map(item => item.transaction_hash);
       tokenTransferFilter = 'all';
       const saved = { items: tokenTransferItems, next: tokenTransferNext, visible: tokenTransferVisible, filter: tokenTransferFilter, address: tokenTransferAddress };
-      tokenTransferItems = Array.from({ length: 8 }, (_, index) => ({
-        transaction_hash: '0xpage' + index,
-        from: { hash: '0x' + 'b'.repeat(40) },
-        to: { hash: tokenTransferAddress },
-        total: { value: '1', decimals: '0' },
-        token_type: 'ERC-20'
-      }));
+      tokenTransferItems = paginationFixture.pageItems;
       tokenTransferNext = { block_number: 123 };
       tokenTransferVisible = 5;
       tokenTransferFilter = 'all';
@@ -95,7 +88,7 @@ const path = require('node:path');
         tokenMetadataCache.delete(retryAddress.toLowerCase());
       }
       return { amountZeroDecimals, amountTiny, amountInvalidDecimals, amountMissingDecimals, amountMetadataFallback, eventAmountInvalidDecimalsFallback, contractTokenType, localPaginationVisible, formulaCell, newlineFormulaCell, fullwidthFormulaCell, incoming, outgoing, metadataRetry };
-    });
+    }, paginationFixture);
     if (edgeCases.amountZeroDecimals !== '12345') throw new Error('Zero-decimals token amount failed: ' + edgeCases.amountZeroDecimals);
     if (edgeCases.amountTiny !== '0.000000000000000001') throw new Error('Tiny ERC-20 amount lost precision: ' + edgeCases.amountTiny);
     if (!edgeCases.amountInvalidDecimals.includes('decimals недоступен')) throw new Error('Invalid decimals were not rejected safely');
@@ -112,11 +105,11 @@ const path = require('node:path');
     if (!edgeCases.newlineFormulaCell.startsWith('"\'\n=HYPERLINK')) throw new Error('CSV newline formula injection guard failed');
     if (!edgeCases.fullwidthFormulaCell.startsWith('"\'＝HYPERLINK')) throw new Error('CSV full-width formula injection guard failed');
     console.log('Edge cases verified:', JSON.stringify(edgeCases));
-    const raceResults = await page.evaluate(async () => {
+    const raceResults = await page.evaluate(async (staleFixture) => {
       const originalFetch = window.fetch;
-      const addressA = '0x' + 'a'.repeat(40);
-      const addressB = '0x' + 'b'.repeat(40);
-      const addressC = '0x' + 'c'.repeat(40);
+      const addressA = staleFixture.addressA;
+      const addressB = staleFixture.addressB;
+      const addressC = staleFixture.addressC;
       const deferred = () => {
         let resolve;
         const promise = new Promise(done => { resolve = done; });
@@ -229,13 +222,13 @@ const path = require('node:path');
       } finally {
         window.fetch = originalFetch;
       }
-    });
+    }, staleFixture);
     if (!raceResults.staleInitialIgnored) throw new Error('Delayed initial lookup overwrote newer address or loading state: ' + JSON.stringify(raceResults));
     if (!raceResults.stalePagesIgnored) throw new Error('Delayed pagination overwrote newer address or loading state: ' + JSON.stringify(raceResults));
     console.log('Deterministic stale address/pagination race regressions passed:', JSON.stringify(raceResults));
 
     // Exercise the user-visible API failure handling with deterministic fetch responses.
-    const apiErrors = await page.evaluate(async () => {
+    const apiErrors = await page.evaluate(async (apiErrorFixture) => {
       const originalFetch = window.fetch;
       const originalSetTimeout = window.setTimeout;
       const address = '0x' + 'a'.repeat(40);
@@ -248,7 +241,7 @@ const path = require('node:path');
           if (mode === 'timeout') return new Promise((resolve, reject) => {
             options.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true });
           });
-          const status = mode === 'rate-limit' ? 429 : 503;
+          const status = mode === 'rate-limit' ? apiErrorFixture.rateLimit.status : apiErrorFixture.serverError.status;
           return Promise.resolve({ ok: false, status, json: async () => ({}) });
         };
         if (mode === 'timeout') {
@@ -271,10 +264,10 @@ const path = require('node:path');
         window.fetch = originalFetch;
         window.setTimeout = originalSetTimeout;
       }
-    });
-    if (!apiErrors.rateLimit.includes('Слишком много запросов') ||
-        !apiErrors.serverError.includes('Не удалось получить данные Blockscout') ||
-        !apiErrors.timeout.includes('слишком долго')) {
+    }, apiErrorFixture);
+    if (!apiErrors.rateLimit.includes(apiErrorFixture.rateLimit.expected) ||
+        !apiErrors.serverError.includes(apiErrorFixture.serverError.expected) ||
+        !apiErrors.timeout.includes(apiErrorFixture.timeout.expected)) {
       throw new Error('API failure handling regression: ' + JSON.stringify(apiErrors));
     }
     console.log('Timeout, HTTP 429, and HTTP 5xx fixtures passed');
