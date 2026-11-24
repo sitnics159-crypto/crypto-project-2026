@@ -422,8 +422,18 @@ const path = require('node:path');
             return Promise.resolve({ ok: true, status: 200, json: async () => tickerPayload });
           }
           if (target.includes('/OHLC?')) {
-            if (mode === 'charts-unavailable') return Promise.resolve({ ok: false, status: 503, json: async () => ({}) });
             const isEth = target.includes('pair=ETHUSD');
+            if (mode === 'charts-unavailable' ||
+                (mode === 'charts-btc-unavailable' && !isEth) ||
+                (mode === 'charts-eth-unavailable' && isEth)) {
+              return Promise.resolve({ ok: false, status: 503, json: async () => ({}) });
+            }
+            if (mode === 'charts-malformed-json' && isEth) {
+              return Promise.resolve({ ok: true, status: 200, json: async () => { throw new SyntaxError('Invalid JSON'); } });
+            }
+            if (mode === 'charts-incomplete' && isEth) {
+              return Promise.resolve({ ok: true, status: 200, json: async () => ({ error: [], result: {} }) });
+            }
             return Promise.resolve({
               ok: true, status: 200,
               json: async () => isEth ? chartPayload('XETHZUSD', 1790) : chartPayload('XXBTZUSD', 61900)
@@ -452,7 +462,13 @@ const path = require('node:path');
         const serverError = await run('server-error');
         const timeout = await run('timeout');
         const chartsUnavailable = await run('charts-unavailable');
-        return { success, rateLimit, serverError, timeout, chartsUnavailable };
+        const btcChartUnavailable = await run('charts-btc-unavailable');
+        const ethChartUnavailable = await run('charts-eth-unavailable');
+        const malformedChartJson = await run('charts-malformed-json');
+        const incompleteChartPayload = await run('charts-incomplete');
+        const retryAfterError = await run('success');
+        return { success, rateLimit, serverError, timeout, chartsUnavailable,
+          btcChartUnavailable, ethChartUnavailable, malformedChartJson, incompleteChartPayload, retryAfterError };
       } finally {
         window.fetch = originalFetch;
         window.setTimeout = originalSetTimeout;
@@ -477,13 +493,22 @@ const path = require('node:path');
         marketRegression.timeout.role !== 'alert' || !marketRegression.timeout.refreshEnabled) {
       throw new Error('Market timeout regression failed: ' + JSON.stringify(marketRegression.timeout));
     }
-    if (!marketRegression.chartsUnavailable.status.includes('Котировки доступны, но графики временно не загрузились') ||
-        marketRegression.chartsUnavailable.btcPrice !== '$62,000.00' ||
-        marketRegression.chartsUnavailable.ethPrice !== '$1,800.00' ||
-        !marketRegression.chartsUnavailable.refreshEnabled) {
-      throw new Error('Market chart fallback regression failed: ' + JSON.stringify(marketRegression.chartsUnavailable));
+    const chartFallbackCases = ['chartsUnavailable', 'btcChartUnavailable', 'ethChartUnavailable',
+      'malformedChartJson', 'incompleteChartPayload'];
+    for (const name of chartFallbackCases) {
+      const state = marketRegression[name];
+      if (!state.status.includes('Котировки доступны, но графики временно не загрузились') ||
+          state.btcPrice !== '$62,000.00' || state.ethPrice !== '$1,800.00' || !state.refreshEnabled) {
+        throw new Error('Market OHLC fallback regression (' + name + ') failed: ' + JSON.stringify(state));
+      }
     }
-    console.log('Market snapshot success, HTTP 429, HTTP 5xx, timeout, and OHLC fallback regressions passed:', JSON.stringify(marketRegression));
+    if (!marketRegression.retryAfterError.status.includes('Обновлено') ||
+        marketRegression.retryAfterError.btcPrice !== '$62,000.00' ||
+        marketRegression.retryAfterError.ethPrice !== '$1,800.00' ||
+        !marketRegression.retryAfterError.refreshEnabled) {
+      throw new Error('Market manual retry after failure regression failed: ' + JSON.stringify(marketRegression.retryAfterError));
+    }
+    console.log('Market snapshot success, HTTP 429, HTTP 5xx, timeout, asymmetric/malformed/incomplete OHLC fallback, and manual retry regressions passed:', JSON.stringify(marketRegression));
 
     // Verify that a saved transaction URL restores the lookup automatically.
     const shareableHash = transactionFixture.hash;
