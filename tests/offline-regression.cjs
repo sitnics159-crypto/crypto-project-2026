@@ -509,7 +509,8 @@ const path = require('node:path');
           ethChartLast: document.querySelector('#eth-chart-data tbody tr:last-child td')?.textContent || '',
           chartsDecorative: document.querySelector('#btc-chart').getAttribute('aria-hidden') === 'true' &&
             document.querySelector('#eth-chart').getAttribute('aria-hidden') === 'true',
-          refreshEnabled: !marketRefresh.disabled
+          refreshEnabled: !marketRefresh.disabled,
+          staleSnapshotNotice: marketStatus.textContent.includes('Последние успешные данные') && marketStatus.textContent.includes('могут быть устаревшими')
         };
       };
       try {
@@ -542,15 +543,18 @@ const path = require('node:path');
       throw new Error('Market success regression failed: ' + JSON.stringify(marketRegression.success));
     }
     if (!marketRegression.rateLimit.status.includes('Слишком много запросов') ||
-        marketRegression.rateLimit.role !== 'alert' || !marketRegression.rateLimit.refreshEnabled) {
+        marketRegression.rateLimit.role !== 'alert' || !marketRegression.rateLimit.refreshEnabled ||
+        !marketRegression.rateLimit.staleSnapshotNotice) {
       throw new Error('Market HTTP 429 regression failed: ' + JSON.stringify(marketRegression.rateLimit));
     }
     if (!marketRegression.serverError.status.includes('Не удалось получить котировки') ||
-        marketRegression.serverError.role !== 'alert' || !marketRegression.serverError.refreshEnabled) {
+        marketRegression.serverError.role !== 'alert' || !marketRegression.serverError.refreshEnabled ||
+        !marketRegression.serverError.staleSnapshotNotice) {
       throw new Error('Market HTTP 5xx regression failed: ' + JSON.stringify(marketRegression.serverError));
     }
     if (!marketRegression.timeout.status.includes('слишком долго') ||
-        marketRegression.timeout.role !== 'alert' || !marketRegression.timeout.refreshEnabled) {
+        marketRegression.timeout.role !== 'alert' || !marketRegression.timeout.refreshEnabled ||
+        !marketRegression.timeout.staleSnapshotNotice) {
       throw new Error('Market timeout regression failed: ' + JSON.stringify(marketRegression.timeout));
     }
     const chartFallbackCases = [
