@@ -1,13 +1,14 @@
 # Development Checkpoint
 
-> Verified 2026-11-24 (Moldova local time). GitHub is authoritative; refresh PRs, branches, checks, and repository settings before relying on this snapshot.
+> Verified 2026-11-24 at 14:46 Moldova local time. GitHub is authoritative; refresh state before relying on this snapshot.
 
 ## Repository
 
 - Repository: `sitnics159-crypto/crypto-project-2026`
 - Default branch: `main`
-- Current main SHA: `82a5bf3093f4fc555e20e1547730653bd09f45ee`
-- Product: static prototype for public Ethereum Sepolia transaction/address lookup and public BTC/ETH market reference data.
+- Verified current main SHA: `0673cef328cc378c8189a7a8cc6d1306ea8dc5aa`
+- Latest main commit: `Add mobile layout and WCAG accessibility baseline (#59)`
+- Product: static, read-only prototype for public Ethereum Sepolia transaction/address lookup and public BTC/ETH market reference data.
 - GitHub Pages: https://sitnics159-crypto.github.io/crypto-project-2026/
 
 ## Product and safety boundaries
@@ -15,37 +16,55 @@
 - Keep the MVP static and read-only: public Sepolia data and public market reference data.
 - Do not add wallet connections, private-key or seed-phrase handling, transaction signing, or transaction submission.
 - Risk labels are evidence-based warnings, not proof of fraud or safety.
-- Changes should improve reliability, security, or commercial value.
+- Changes should improve reliability, security, accessibility, or commercial value.
 
 ## Verified merged pull requests
 
-| PR | Change | Merge commit |
-|---|---|---|
-| #24 | ERC-20 event-decimals fallback | `83079dfc1c844e34e30e300e22c164e7362053ec` |
-| #25 | Continuous evolution principle | `37a60c0bf255202cb09e46076ea9fda48db0cf11` |
-| #26 | Interruption-safe continuous development system | `c115264710b57a9ef24da7fe23e889a5e03eee69` |
-| #27 | Earlier development checkpoint refresh | `d54a7e6d2311c4b6ee7b7cdace492489a6a0abfe` |
-| #28 | Weekly CI health checks | `e642c924d2d4c6db57f0b0a93598383b26f02995` |
-| #30 | Token metadata retries, CSV formula-injection safeguards, immutable Actions pins, Playwright pin | `c158099304812bd96874771d2d82bcf364727915` |
-| #32 | Stale address lookup and pagination response guards | `7b860772d4acedb360c50b3925c38ef08f4a8f33` |
-| #36 | Responsible security reporting policy (`SECURITY.md`) | `82a5bf3093f4fc555e20e1547730653bd09f45ee` |
+| PR | Change |
+|---|---|
+| #24–#28 | ERC-20 event-decimals fallback; development principles and interruption-safe process; checkpoint; weekly CI health checks |
+| #30 | Token metadata retries, CSV formula-injection safeguards, immutable Actions pins, pinned Playwright |
+| #32 | Stale address lookup and transaction/ERC-20 pagination response guards |
+| #36 | Responsible security reporting policy (`SECURITY.md`) |
+| #37 | Development checkpoint refresh |
+| #38 | Split deterministic offline tests from live API smoke checks |
+| #39 | Deterministic transaction state and error regression coverage |
+| #40, #43 | GitHub Pages artifact visibility and rerun reliability fixes |
+| #41, #51 | Tiny transaction-fee precision and 18-decimal ETH display precision |
+| #42, #53, #56 | Kraken market error/retry coverage and independent BTC/ETH chart fallback |
+| #44, #47 | Shareable lookup URL and live transaction browser smoke coverage |
+| #45, #49 | CSV export integration coverage and export-state snapshot fix |
+| #46, #48 | Address lookup and pagination error/retry coverage |
+| #54, #55 | Server-side ERC-20 incoming/outgoing filters, pagination, and regression tests |
+| #57 | Mobile input sizing and visible keyboard focus |
+| #58 | Screen-reader-accessible market chart data and keyboard navigation |
+| #59 | Responsive layout and automated WCAG 2.0/2.1 A/AA plus WCAG 2.2 AA baseline |
 
-## Current pull requests and issues
+## Closed, unmerged, and completed work
 
-- PR #29 — earlier checkpoint refresh — CLOSED as stale and diverged from current `main`; superseded by replacement PR #37.
-- PR #33 — old security-policy branch — CLOSED; superseded by merged PR #36.
-- PR #36 — security policy — MERGED.
-- Issue #31 — stale address/pagination response race — CLOSED as completed by PR #32.
-- Issue #35 — separate deterministic offline tests from live API smoke tests — OPEN and remains the next engineering task.
+- PR #29 — stale checkpoint branch; superseded by merged PR #37.
+- PR #33 — stale security-policy branch; superseded by merged PR #36.
+- PR #50 — closed unmerged; superseded by merged PR #51.
+- PR #52 — closed unmerged; superseded by merged PR #54.
+- Issue #31 — CLOSED as completed by PR #32.
+- Issue #35 — CLOSED as completed by PR #38 and the subsequent deterministic regression-test PRs.
+- Current open pull requests: none (verified from GitHub).
+- Current open issues: none (verified from GitHub).
 
 ## CI and GitHub Pages on current main
 
-All results below are for main SHA `82a5bf3093f4fc555e20e1547730653bd09f45ee`:
+All four latest push workflows completed successfully on main SHA `0673cef328cc378c8189a7a8cc6d1306ea8dc5aa`:
 
-- Validate static site: SUCCESS — [run 45346728309](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45346728309).
-- Browser smoke test: SUCCESS — [run 45346728411](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45346728411).
-- GitHub Pages deployment: SUCCESS on attempt 2 — [run 45346728428](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45346728428). Attempt 1 uploaded the Pages artifact but the deploy action temporarily reported that artifact metadata was unavailable; retry succeeded.
-- Workflow success confirms deployment action completion; it is not a substitute for a separate visual browser review of the published site.
+- Validate static site: SUCCESS — [run 45389126088](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45389126088).
+- Live API integration smoke test: SUCCESS — [run 45389126115](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45389126115).
+- Deterministic offline tests: SUCCESS — [run 45389126143](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45389126143).
+- GitHub Pages deployment: SUCCESS — [run 45389126215](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45389126215).
+
+The live smoke run received HTTP 200 responses from Kraken and Sepolia Blockscout for market data, address lookup, ERC-20 transfers, transaction details, logs, and directional filters. It also exercised pagination and CSV download.
+
+The deterministic offline suite passed transaction-state and API-error matrices, token-decimal fallbacks, CSV safety/export behavior, shareable URL restoration, stale-request race regressions, address/token pagination retry behavior, and market fallback/retry cases.
+
+The accessibility regression passed at 320px, 390px, and 768px: no horizontal overflow, both primary inputs visible, 26 axe checks passed at each viewport, zero reported violations, and one axe item marked incomplete for manual review. Automated results do not replace a manual accessibility audit.
 
 ## Repository protection
 
@@ -56,7 +75,7 @@ The repository ruleset was independently read from GitHub on 2026-11-24:
 - Pull requests required; squash is the only allowed merge method.
 - Deletion and non-fast-forward updates are restricted.
 - Required status checks: `validate` and `browser-smoke`, with strict status-check policy enabled.
-- Required approving review count is 0; this ruleset requires a PR and checks but does not require a human approval review.
+- Required approving review count is 0; the ruleset requires a PR and checks but not a human approval review.
 
 ## Security and reliability notes
 
@@ -65,15 +84,31 @@ The repository ruleset was independently read from GitHub on 2026-11-24:
 - CSV export protects formula-like values, including leading whitespace/newlines and full-width formula operators.
 - Address lookup and transaction/ERC-20 pagination use request generations and abort guards so stale responses and stale `finally` handlers cannot overwrite newer UI state.
 - CI dependencies are pinned to immutable GitHub Actions commit SHAs; Playwright is pinned to `1.65.1`.
-- No Content-Security-Policy meta element is present. GitHub Pages does not provide repository-level arbitrary response-header configuration; a meta CSP is not equivalent to an HTTP response header. Revisit hosting only if stronger response-header controls become a release requirement.
 - No wallet connection, private-key, seed-phrase, or transaction signing/sending flow is part of the MVP.
+- No project license has been selected; do not add a `LICENSE` file until the owner chooses one.
 
 ## Next work queue
 
-1. Issue #35: separate deterministic, network-free application tests from live Blockscout/Kraken integration smoke checks. Add fixtures for transaction parsing, token decimals, CSV safety, pagination/filtering, stale requests, and timeout/429/5xx handling.
-2. Keep deterministic tests independent of upstream availability; report offline and live integration layers separately in CI.
-3. Continue final repository and deployment audit after the test split.
+1. Perform a manual visual review of the deployed GitHub Pages site on mobile and desktop.
+2. Inspect the single incomplete axe result manually and record whether it requires remediation.
+3. Complete the MVP 1.0 release-readiness audit, including API failure behavior and the documented security boundaries.
 4. Select an appropriate project license before adding a `LICENSE`; do not assume one.
+
+## Accessibility follow-up (2026-11-24)
+
+- PR #59 responsive/WCAG baseline passed at 320px, 390px, and 768px: no horizontal overflow, both primary inputs visible, 26 axe checks passed per viewport, and zero automated violations.
+- The single axe `incomplete` result is rule `color-contrast`, not a confirmed violation. Axe could not determine backgrounds because the page uses a CSS gradient.
+- Diagnostic PR #61: https://github.com/sitnics159-crypto/crypto-project-2026/pull/61. It logs the incomplete rule, help text, selectors, HTML snippets, and check messages. All three CI workflows passed on head `1a97ff062fd8d6fcd1455395949340680d0f996f`. PR remains open and unmerged.
+- Manual contrast calculation against the lightest sampled gradient stop `#44327a` gave: `#9eabc2` 4.57:1; `#baf6de` 8.74:1; `#c7b8ff` 5.91:1; `#d6c8ff` 6.84:1. Each exceeds the 4.5:1 AA threshold for normal text where applicable. The decorative diamond is non-text and is not evaluated as text.
+- This was a targeted contrast check of the five reported header/intro nodes, not a complete manual audit of every page state or assistive-technology workflow. No application CSS change was needed from this review.
+
+## Current session
+
+- Date: 2026-11-24.
+- Main remains `0673cef328cc378c8189a7a8cc6d1306ea8dc5aa`; no application code or deployment changes were made during the accessibility follow-up.
+- Documentation branch: `docs/checkpoint-after-pr59-2026-11-24`; existing documentation PR #60 remains open and unmerged.
+- Diagnostic PR #61 remains open and unmerged; its three CI workflows passed.
+- Next action: complete the broader MVP 1.0 release-readiness audit, including API failure behavior, keyboard/assistive-technology checks, and documented security boundaries.
 
 ## Session protocol
 
@@ -83,6 +118,11 @@ The repository ruleset was independently read from GitHub on 2026-11-24:
 - GitHub is the durable source of truth; chat history is not a substitute.
 - Do not merge a PR without explicit user approval for that specific PR.
 
-## Next action
+## Current session
 
-Implement Issue #35 as a focused test-infrastructure change, preserving the static MVP and no-wallet/no-secret boundaries.
+- Date/time: 2026-11-24, 14:46 Moldova local time.
+- Verified main: `0673cef328cc378c8189a7a8cc6d1306ea8dc5aa`.
+- Documentation update branch: `docs/checkpoint-after-pr59-2026-11-24`.
+- Scope: this checkpoint only; no application code or deployment configuration changed.
+- Latest main CI and Pages deployment: all four workflows SUCCESS, with run links above.
+- Next action: review the published site visually and inspect the incomplete accessibility audit item.
