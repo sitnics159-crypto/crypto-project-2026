@@ -338,6 +338,7 @@ const path = require('node:path');
           resultHidden: addressResult.hidden
         };
         let recoveryRequests = 0;
+        window.setTimeout = originalSetTimeout;
         window.fetch = async url => {
           recoveryRequests++;
           if (recoveryRequests <= 3) {
@@ -382,8 +383,15 @@ const path = require('node:path');
         !apiErrors.incomplete.includes('Источник вернул неполные данные') ||
         !apiErrors.rateLimit.includes(apiErrorFixture.rateLimit.expected) ||
         !apiErrors.serverError.includes(apiErrorFixture.serverError.expected) ||
-        !apiErrors.timeout.includes(apiErrorFixture.timeout.expected)) {
-      throw new Error('Address lookup API failure handling regression: ' + JSON.stringify(apiErrors));
+        !apiErrors.timeout.includes(apiErrorFixture.timeout.expected) ||
+        !apiErrors.failedState.message.includes(apiErrorFixture.serverError.expected) ||
+        !apiErrors.failedState.buttonEnabled || !apiErrors.failedState.loadingHidden ||
+        !apiErrors.failedState.resultHidden ||
+        !apiErrors.recoveredState.resultVisible || !apiErrors.recoveredState.errorHidden ||
+        apiErrors.recoveredState.displayedAddress !== ('0x' + 'a'.repeat(40)) ||
+        !apiErrors.recoveredState.buttonEnabled || !apiErrors.recoveredState.loadingHidden ||
+        apiErrors.recoveredState.requestCount !== 6) {
+      throw new Error('Address lookup API failure/recovery regression: ' + JSON.stringify(apiErrors));
     }
     console.log('Address lookup 404, incomplete payload, timeout, HTTP 429, and HTTP 5xx fixtures passed');
     // Exercise transaction rendering and request failures using local fixtures only.
