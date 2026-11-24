@@ -47,7 +47,28 @@ const path = require('node:path');
         keyboardFocus.outlineWidth === '0px') {
       throw new Error('Visible keyboard focus regression: ' + JSON.stringify(keyboardFocus));
     }
-    console.log('Mobile input sizing and keyboard focus passed:', JSON.stringify({ mobileAccessibility, keyboardFocus }));
+    const tabbable = await page.locator('a[href],button:not([disabled]),input:not([disabled])').evaluateAll(elements =>
+      elements.filter(element => {
+        const style = getComputedStyle(element);
+        return element.getClientRects().length > 0 && style.visibility !== 'hidden' &&
+          !element.closest('[hidden]') && element.tabIndex >= 0;
+      }).map(element => element.id)
+    );
+    const currentStop = tabbable.indexOf(keyboardFocus.id);
+    if (currentStop < 0 || tabbable.length < 6) {
+      throw new Error('Keyboard navigation fixture did not expose the expected controls: ' + JSON.stringify({ tabbable, keyboardFocus }));
+    }
+    const keyboardSequence = [];
+    for (let index = currentStop + 1; index < tabbable.length; index++) {
+      await page.keyboard.press('Tab');
+      const activeId = await page.evaluate(() => document.activeElement?.id || '');
+      keyboardSequence.push(activeId);
+      if (activeId !== tabbable[index]) {
+        throw new Error('Keyboard Tab order skipped or reordered a visible control: ' +
+          JSON.stringify({ expected: tabbable[index], actual: activeId, keyboardSequence }));
+      }
+    }
+    console.log('Mobile input sizing and sequential keyboard navigation passed:', JSON.stringify({ mobileAccessibility, keyboardFocus, keyboardSequence }));
 
     const fixtureResult = await page.evaluate(f => ({
       type: transactionTypeLabel(f.transaction),
@@ -482,6 +503,12 @@ const path = require('node:path');
           ethPrice: document.querySelector('#eth-price').textContent,
           btcChart: document.querySelector('#btc-chart').getAttribute('aria-label'),
           ethChart: document.querySelector('#eth-chart').getAttribute('aria-label'),
+          btcChartRows: document.querySelectorAll('#btc-chart-data tbody tr').length,
+          ethChartRows: document.querySelectorAll('#eth-chart-data tbody tr').length,
+          btcChartLast: document.querySelector('#btc-chart-data tbody tr:last-child td')?.textContent || '',
+          ethChartLast: document.querySelector('#eth-chart-data tbody tr:last-child td')?.textContent || '',
+          chartsDecorative: document.querySelector('#btc-chart').getAttribute('aria-hidden') === 'true' &&
+            document.querySelector('#eth-chart').getAttribute('aria-hidden') === 'true',
           refreshEnabled: !marketRefresh.disabled
         };
       };
@@ -506,7 +533,11 @@ const path = require('node:path');
     if (!marketRegression.success.status.includes('Обновлено') ||
         marketRegression.success.btcPrice !== '$62,000.00' ||
         marketRegression.success.ethPrice !== '$1,800.00' ||
-        !marketRegression.success.btcChart.includes('График Bitcoin') ||
+        marketRegression.success.btcChart !== null || marketRegression.success.ethChart !== null ||
+        marketRegression.success.btcChartRows !== 25 || marketRegression.success.ethChartRows !== 25 ||
+        marketRegression.success.btcChartLast !== '$61,926.00' ||
+        marketRegression.success.ethChartLast !== '$1,816.00' ||
+        !marketRegression.success.chartsDecorative ||
         !marketRegression.success.refreshEnabled) {
       throw new Error('Market success regression failed: ' + JSON.stringify(marketRegression.success));
     }
@@ -532,7 +563,7 @@ const path = require('node:path');
     for (const item of chartFallbackCases) {
       const state = marketRegression[item.name];
       if (!state.status.includes(item.status) ||
-          Boolean(state.btcChart) !== item.btc || Boolean(state.ethChart) !== item.eth ||
+          (state.btcChartRows === 25) !== item.btc || (state.ethChartRows === 25) !== item.eth ||
           state.btcPrice !== '$62,000.00' || state.ethPrice !== '$1,800.00' || !state.refreshEnabled) {
         throw new Error('Market independent OHLC fallback regression (' + item.name + ') failed: ' + JSON.stringify(state));
       }
