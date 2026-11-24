@@ -237,13 +237,13 @@ tokenLoadMore.addEventListener('click',loadMoreTokenTransfers);
 function csvCell(value){let text=String(value??'');if(/^[=+@\- \s\uFEFF\uFF1D\uFF0B\uFF0D\uFF20]/.test(text))text="'"+text;return '"'+text.replaceAll('"','""')+'"'}
 function exactTokenAmount(item){const raw=item.total&&item.total.value,decimals=tokenDecimals(item);if(raw===null||raw===undefined||decimals===null)return '';try{const value=BigInt(String(raw)),base=10n**BigInt(decimals),whole=value/base,fraction=(value%base).toString().padStart(decimals,'0').replace(/0+$/,'');return whole.toString()+(fraction?'.'+fraction:'')}catch{return ''}}
 async function exportTokenTransfers(){
- const rows=filteredTokenTransfers();if(!rows.length)return;
+ const exportAddress=tokenTransferAddress,exportFilter=tokenTransferFilter,rows=filteredTokenTransfers();if(!rows.length)return;
  await Promise.all(rows.map(item=>item.token_type==='ERC-20'?resolveTokenDecimals(item):Promise.resolve(null)));
  const headers=['transaction_hash','log_index','token_type','from_address','to_address','token_name','token_symbol','token_address','amount','amount_raw','decimals','block_number','timestamp'];
  const csv=[headers,...rows.map(item=>{const token=item.token&&typeof item.token==='object'?item.token:{},from=item.from&&item.from.hash||'',to=item.to&&item.to.hash||'',total=item.total&&typeof item.total==='object'?item.total:{};return[item.transaction_hash,item.log_index??'',item.token_type||'',from,to,token.name||'',token.symbol||'',token.address_hash||'',exactTokenAmount(item),total.value??'',tokenDecimals(item)??'',item.block_number??'',item.timestamp||'']})].map(row=>row.map(csvCell).join(',')).join('\r\n');
  const blob=new Blob(['\uFEFF',csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),link=document.createElement('a');
- link.href=url;link.download='sepolia-token-transfers-'+(tokenTransferAddress||'address').toLowerCase().slice(2,12)+'-'+tokenTransferFilter+'.csv';document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
- tokenExportStatus.textContent='Файл готов: '+rows.length+' загруженных переводов ('+(tokenTransferFilter==='all'?'все':tokenTransferFilter==='incoming'?'входящие':'исходящие')+').'
+ link.href=url;link.download='sepolia-token-transfers-'+(exportAddress||'address').toLowerCase().slice(2,12)+'-'+exportFilter+'.csv';document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+ tokenExportStatus.textContent='Файл готов: '+rows.length+' загруженных переводов ('+(exportFilter==='all'?'все':exportFilter==='incoming'?'входящие':'исходящие')+').'
 }
 tokenExport.addEventListener('click',exportTokenTransfers);
 function appendAddressTx(tx){

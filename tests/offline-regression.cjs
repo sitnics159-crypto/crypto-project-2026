@@ -642,6 +642,86 @@ const path = require('node:path');
     }
     console.log('CSV download, 13-column schema, exact amounts, escaping, and all/incoming/outgoing filters passed');
 
+    const csvExportRace = await page.evaluate(async () => {
+      const originalFetch = window.fetch;
+      const originalCreateObjectURL = URL.createObjectURL;
+      const originalAnchorClick = HTMLAnchorElement.prototype.click;
+      const previous = {
+        items: tokenTransferItems,
+        address: tokenTransferAddress,
+        filter: tokenTransferFilter,
+        visible: tokenTransferVisible,
+        status: tokenExportStatus.textContent
+      };
+      const exportAddress = '0x' + 'd'.repeat(40);
+      const changedAddress = '0x' + 'e'.repeat(40);
+      const tokenAddress = '0x' + 'f'.repeat(40);
+      const txHash = '0x' + '9'.repeat(64);
+      let releaseMetadata;
+      let metadataStartedResolve;
+      const metadataStarted = new Promise(resolve => { metadataStartedResolve = resolve; });
+      let capturedBlob = null;
+      let capturedFilename = '';
+      window.fetch = async url => {
+        if (String(url).includes('/api/v2/tokens/' + tokenAddress)) {
+          metadataStartedResolve();
+          return new Promise(resolve => {
+            releaseMetadata = () => resolve(new Response(JSON.stringify({ decimals: '6' }), {
+              status: 200, headers: { 'Content-Type': 'application/json' }
+            }));
+          });
+        }
+        return originalFetch(url);
+      };
+      URL.createObjectURL = blob => { capturedBlob = blob; return 'blob:csv-export-race'; };
+      HTMLAnchorElement.prototype.click = function () { capturedFilename = this.download; };
+      try {
+        tokenMetadataCache.delete(tokenAddress.toLowerCase());
+        tokenTransferAddress = exportAddress;
+        tokenTransferFilter = 'incoming';
+        tokenTransferItems = [{
+          transaction_hash: txHash,
+          log_index: 7,
+          token_type: 'ERC-20',
+          from: { hash: '0x' + 'a'.repeat(40) },
+          to: { hash: exportAddress },
+          token: { address_hash: tokenAddress, symbol: 'RACE' },
+          total: { value: '1234567' }
+        }];
+        const pendingExport = exportTokenTransfers();
+        await metadataStarted;
+        tokenTransferFilter = 'outgoing';
+        tokenTransferAddress = changedAddress;
+        releaseMetadata();
+        await pendingExport;
+        return {
+          filename: capturedFilename,
+          status: tokenExportStatus.textContent,
+          csv: capturedBlob ? await capturedBlob.text() : ''
+        };
+      } finally {
+        window.fetch = originalFetch;
+        URL.createObjectURL = originalCreateObjectURL;
+        HTMLAnchorElement.prototype.click = originalAnchorClick;
+        tokenMetadataCache.delete(tokenAddress.toLowerCase());
+        tokenTransferItems = previous.items;
+        tokenTransferAddress = previous.address;
+        tokenTransferFilter = previous.filter;
+        tokenTransferVisible = previous.visible;
+        tokenExportStatus.textContent = previous.status;
+        renderTokenTransferList();
+      }
+    });
+    const raceAddressSuffix = 'd'.repeat(8);
+    if (!csvExportRace.filename.includes(raceAddressSuffix) ||
+        !csvExportRace.filename.endsWith('-incoming.csv') ||
+        !csvExportRace.status.includes('1 загруженных переводов (входящие)') ||
+        !csvExportRace.csv.includes('0x' + '9'.repeat(64)) ||
+        !csvExportRace.csv.includes('1.234567')) {
+      throw new Error('CSV export state snapshot race regression failed: ' + JSON.stringify(csvExportRace));
+    }
+    console.log('CSV export keeps the initiating address and filter while token metadata resolves');
+
     // Verify address transaction/token pagination failures preserve state and can be retried.
     const paginationRegression = await page.evaluate(async () => {
       const originalFetch = window.fetch;
