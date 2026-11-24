@@ -1,4 +1,4 @@
-name: Browser smoke test
+name: Live API integration smoke test
 
 on:
   schedule:
