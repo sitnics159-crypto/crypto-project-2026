@@ -164,6 +164,38 @@ jobs:
                 totalLogs: txDiagnostics.logCount,
                 transferEvents: txDiagnostics.transferEventCount
               }));
+
+              // Verify the main transaction form renders a real transaction from Blockscout.
+              await page.locator('#tx-hash').fill(txHash);
+              await page.locator('#submit').click();
+              await page.waitForFunction(() =>
+                !document.querySelector('#result').hidden ||
+                !document.querySelector('#error').hidden,
+                { timeout: 30000 }
+              );
+              const transactionLookup = await page.evaluate(() => ({
+                resultVisible: !document.querySelector('#result').hidden,
+                errorVisible: !document.querySelector('#error').hidden,
+                displayedHash: document.querySelector('#r-hash').textContent.trim(),
+                status: document.querySelector('#r-status').textContent.trim(),
+                from: document.querySelector('#r-from').textContent.trim(),
+                to: document.querySelector('#r-to').textContent.trim(),
+                block: document.querySelector('#r-block').textContent.trim(),
+                fee: document.querySelector('#r-fee').textContent.trim()
+              }));
+              const transactionRequest = apiResponses.find(item =>
+                item.url.includes('/api/v2/transactions/' + txHash)
+              );
+              if (!transactionLookup.resultVisible || transactionLookup.errorVisible ||
+                  transactionLookup.displayedHash.toLowerCase() !== txHash.toLowerCase() ||
+                  !transactionLookup.status || !transactionLookup.from ||
+                  !transactionLookup.to || !transactionLookup.block || !transactionLookup.fee) {
+                throw new Error('Live transaction form lookup failed: ' + JSON.stringify(transactionLookup));
+              }
+              if (!transactionRequest || transactionRequest.status !== 200) {
+                throw new Error('Live transaction form API response missing or unsuccessful: ' + JSON.stringify(transactionRequest));
+              }
+              console.log('Live transaction form lookup passed:', JSON.stringify(transactionLookup));
               for (const filter of ['incoming', 'outgoing', 'all']) {
                 await page.locator('[data-token-filter="' + filter + '"]').click();
                 await page.waitForTimeout(150);
