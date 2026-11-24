@@ -18,6 +18,28 @@ const axe = require('axe-core');
     await page.goto('http://127.0.0.1:4173/', { waitUntil: 'domcontentloaded' });
     if (!(await page.title()).includes('Sepolia')) throw new Error('Unexpected page title');
 
+    const controlSemantics = await page.evaluate(() => {
+      const txInput = document.querySelector('#tx-hash');
+      const addressInput = document.querySelector('#address-input');
+      const labelFor = id => Boolean(document.querySelector('label[for="' + id + '"]'));
+      return {
+        transactionInputLabelled: labelFor('tx-hash'),
+        addressInputLabelled: labelFor('address-input'),
+        transactionHintLinked: txInput?.getAttribute('aria-describedby') === 'hint',
+        addressHintLinked: addressInput?.getAttribute('aria-describedby') === 'address-hint',
+        transactionErrorUsesAlert: document.querySelector('#error')?.getAttribute('role') === 'alert',
+        addressErrorUsesAlert: document.querySelector('#address-error')?.getAttribute('role') === 'alert',
+        addressLoadingAnnounced: document.querySelector('#address-loading')?.getAttribute('aria-live') === 'polite',
+        transactionLoadingAnnounced: document.querySelector('#loading')?.getAttribute('role') === 'status',
+        marketRefreshHasName: document.querySelector('#market-refresh')?.textContent.trim() === 'Обновить',
+        marketCardsNamed: [...document.querySelectorAll('.market-card')].length === 2 &&
+          [...document.querySelectorAll('.market-card')].every(card => Boolean(card.getAttribute('aria-label')))
+      };
+    });
+    if (Object.values(controlSemantics).some(value => value !== true)) {
+      throw new Error('Interactive control accessibility semantics mismatch: ' + JSON.stringify(controlSemantics));
+    }
+
     await page.addScriptTag({ content: axe.source });
     const viewportResults = [];
 
