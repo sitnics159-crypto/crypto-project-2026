@@ -487,6 +487,7 @@ const path = require('node:path');
     await page.goto('http://127.0.0.1:4173/?tx=' + encodeURIComponent(shareableHash), { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() =>
       !document.querySelector('#result').hidden || !document.querySelector('#error').hidden,
+      undefined,
       { timeout: 10000 }
     );
     const shareableLookup = await page.evaluate(() => ({
@@ -507,6 +508,50 @@ const path = require('node:path');
       throw new Error('Shareable transaction URL regression failed: ' + JSON.stringify(shareableLookup));
     }
     console.log('Shareable transaction URL restoration passed:', JSON.stringify(shareableLookup));
+
+    const shareableAddress = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
+    await page.addInitScript(address => {
+      const originalFetch = window.fetch.bind(window);
+      window.__shareableAddressFetches = [];
+      window.fetch = (url, options) => {
+        const target = String(url);
+        const base = 'https://eth-sepolia.blockscout.com/api/v2/addresses/' + address;
+        if (target === base || target === base + '/transactions' ||
+            target.startsWith(base + '/token-transfers?')) {
+          window.__shareableAddressFetches.push(target);
+          const payload = target === base
+            ? { hash: address, coin_balance: '1000000000000000000', is_contract: false, is_scam: false, has_tokens: false, has_token_transfers: false }
+            : { items: [], next_page_params: null };
+          return Promise.resolve(new Response(JSON.stringify(payload), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
+          }));
+        }
+        return originalFetch(url, options);
+      };
+    }, shareableAddress);
+    await page.goto('http://127.0.0.1:4173/?address=' + encodeURIComponent(shareableAddress), { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() =>
+      !document.querySelector('#address-result').hidden || !document.querySelector('#address-error').hidden,
+      undefined,
+      { timeout: 10000 }
+    );
+    const shareableAddressLookup = await page.evaluate(() => ({
+      input: document.querySelector('#address-input').value,
+      displayedAddress: document.querySelector('#a-hash').textContent,
+      resultVisible: !document.querySelector('#address-result').hidden,
+      errorVisible: !document.querySelector('#address-error').hidden,
+      fetches: window.__shareableAddressFetches.length,
+      queryAddress: new URLSearchParams(window.location.search).get('address')
+    }));
+    if (!shareableAddressLookup.resultVisible || shareableAddressLookup.errorVisible ||
+        shareableAddressLookup.input.toLowerCase() !== shareableAddress ||
+        shareableAddressLookup.displayedAddress.toLowerCase() !== shareableAddress ||
+        shareableAddressLookup.fetches !== 3 ||
+        shareableAddressLookup.queryAddress.toLowerCase() !== shareableAddress) {
+      throw new Error('Shareable address URL regression failed: ' + JSON.stringify(shareableAddressLookup));
+    }
+    console.log('Shareable address URL restoration passed:', JSON.stringify(shareableAddressLookup));
 
     console.log('All deterministic offline application tests passed');
   } finally {
