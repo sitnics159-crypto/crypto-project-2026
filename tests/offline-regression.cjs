@@ -683,7 +683,7 @@ const path = require('node:path');
 
     await page.locator('[data-token-filter="incoming"]').click();
     await page.waitForFunction(() => !tokenTransferLoading && tokenTransferFilter === 'incoming' && tokenTransferItems.length === 1);
-    if (!window.__shareableAddressFetches?.some(url => new URL(url).searchParams.get('filter') === 'to')) {
+    if (!(await page.evaluate(() => window.__shareableAddressFetches.some(url => new URL(url).searchParams.get('filter') === 'to')))) {
       throw new Error('Incoming CSV filter did not issue Blockscout filter=to request');
     }
     const incomingCsv = await readCsvDownload();
@@ -693,7 +693,7 @@ const path = require('node:path');
     }
     await page.locator('[data-token-filter="outgoing"]').click();
     await page.waitForFunction(() => !tokenTransferLoading && tokenTransferFilter === 'outgoing' && tokenTransferItems.length === 1);
-    if (!window.__shareableAddressFetches?.some(url => new URL(url).searchParams.get('filter') === 'from')) {
+    if (!(await page.evaluate(() => window.__shareableAddressFetches.some(url => new URL(url).searchParams.get('filter') === 'from')))) {
       throw new Error('Outgoing CSV filter did not issue Blockscout filter=from request');
     }
     const outgoingCsv = await readCsvDownload();
