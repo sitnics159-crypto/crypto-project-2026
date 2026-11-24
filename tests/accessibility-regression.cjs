@@ -8,8 +8,20 @@ const axe = require('axe-core');
   page.on('pageerror', error => pageErrors.push(error.message));
 
   // Keep the baseline deterministic: this suite must not contact third-party APIs.
-  await page.route('**/*', route => {
+  await page.route('**/*', async route => {
     const url = new URL(route.request().url());
+    if ((url.hostname === '127.0.0.1' || url.hostname === 'localhost') &&
+        (url.pathname === '/' || url.pathname === '/index.html')) {
+      // axe injects its own script. Strip the production CSP only from this
+      // isolated accessibility-test response; CSP is checked separately by
+      // the offline regression and the normal browser smoke test.
+      const response = await route.fetch();
+      const html = await response.text();
+      return route.fulfill({
+        response,
+        body: html.replace(/<meta http-equiv="Content-Security-Policy" content="[^"]+">/i, '')
+      });
+    }
     if (url.hostname === '127.0.0.1' || url.hostname === 'localhost') return route.continue();
     return route.abort('blockedbyclient');
   });
