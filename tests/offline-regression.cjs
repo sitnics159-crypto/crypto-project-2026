@@ -368,6 +368,105 @@ const path = require('node:path');
       }
     }, transactionFixture);
     console.log('Transaction state matrix passed:', JSON.stringify(transactionRegression));
+
+    // Exercise Kraken market snapshot success and failure paths with deterministic local responses.
+    const marketRegression = await page.evaluate(async () => {
+      const originalFetch = window.fetch;
+      const originalSetTimeout = window.setTimeout;
+      const tickerPayload = {
+        error: [],
+        result: {
+          XXBTZUSD: { c: ['62000.00', '1'], h: ['63000.00', '64000.00'], l: ['61000.00', '60000.00'] },
+          XETHZUSD: { c: ['1800.00', '1'], h: ['1850.00', '1900.00'], l: ['1750.00', '1700.00'] }
+        }
+      };
+      const makeRows = open => Array.from({ length: 26 }, (_, index) => [
+        1000 + index * 3600, String(open + index), String(open + index + 2),
+        String(open + index - 1), String(open + index + 1), '0', '1', 1
+      ]);
+      const chartPayload = (key, open) => ({ error: [], result: { [key]: makeRows(open), last: 999999 } });
+      const waitForMarket = async () => {
+        for (let attempt = 0; attempt < 200; attempt++) {
+          await new Promise(resolve => originalSetTimeout(resolve, 5));
+          if (!marketRefresh.disabled && marketStatus.textContent !== 'Получаем публичные рыночные данные…') return;
+        }
+        throw new Error('Timed out waiting for market snapshot completion: ' + marketStatus.textContent);
+      };
+      const run = async mode => {
+        window.fetch = (url, options = {}) => {
+          const target = String(url);
+          if (target.includes('/Ticker?')) {
+            if (mode === 'timeout') return new Promise((resolve, reject) => {
+              options.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true });
+            });
+            if (mode === 'rate-limit') return Promise.resolve({ ok: false, status: 429, json: async () => ({}) });
+            if (mode === 'server-error') return Promise.resolve({ ok: false, status: 503, json: async () => ({}) });
+            return Promise.resolve({ ok: true, status: 200, json: async () => tickerPayload });
+          }
+          if (target.includes('/OHLC?')) {
+            if (mode === 'charts-unavailable') return Promise.resolve({ ok: false, status: 503, json: async () => ({}) });
+            const isEth = target.includes('pair=ETHUSD');
+            return Promise.resolve({
+              ok: true, status: 200,
+              json: async () => isEth ? chartPayload('XETHZUSD', 1790) : chartPayload('XXBTZUSD', 61900)
+            });
+          }
+          throw new Error('Unexpected fetch in market regression: ' + target);
+        };
+        if (mode === 'timeout') {
+          window.setTimeout = (callback, delay, ...args) =>
+            originalSetTimeout(callback, delay === 15000 ? 0 : delay, ...args);
+        }
+        marketRefresh.click();
+        await waitForMarket();
+        return {
+          status: marketStatus.textContent,
+          role: marketStatus.getAttribute('role'),
+          btcPrice: document.querySelector('#btc-price').textContent,
+          ethPrice: document.querySelector('#eth-price').textContent,
+          btcChart: document.querySelector('#btc-chart').getAttribute('aria-label'),
+          refreshEnabled: !marketRefresh.disabled
+        };
+      };
+      try {
+        const success = await run('success');
+        const rateLimit = await run('rate-limit');
+        const serverError = await run('server-error');
+        const timeout = await run('timeout');
+        const chartsUnavailable = await run('charts-unavailable');
+        return { success, rateLimit, serverError, timeout, chartsUnavailable };
+      } finally {
+        window.fetch = originalFetch;
+        window.setTimeout = originalSetTimeout;
+      }
+    });
+    if (!marketRegression.success.status.includes('Обновлено') ||
+        marketRegression.success.btcPrice !== '$62,000.00' ||
+        marketRegression.success.ethPrice !== '$1,800.00' ||
+        !marketRegression.success.btcChart.includes('График Bitcoin') ||
+        !marketRegression.success.refreshEnabled) {
+      throw new Error('Market success regression failed: ' + JSON.stringify(marketRegression.success));
+    }
+    if (!marketRegression.rateLimit.status.includes('Слишком много запросов') ||
+        marketRegression.rateLimit.role !== 'alert' || !marketRegression.rateLimit.refreshEnabled) {
+      throw new Error('Market HTTP 429 regression failed: ' + JSON.stringify(marketRegression.rateLimit));
+    }
+    if (!marketRegression.serverError.status.includes('Не удалось получить котировки') ||
+        marketRegression.serverError.role !== 'alert' || !marketRegression.serverError.refreshEnabled) {
+      throw new Error('Market HTTP 5xx regression failed: ' + JSON.stringify(marketRegression.serverError));
+    }
+    if (!marketRegression.timeout.status.includes('слишком долго') ||
+        marketRegression.timeout.role !== 'alert' || !marketRegression.timeout.refreshEnabled) {
+      throw new Error('Market timeout regression failed: ' + JSON.stringify(marketRegression.timeout));
+    }
+    if (!marketRegression.chartsUnavailable.status.includes('Котировки доступны, но графики временно не загрузились') ||
+        marketRegression.chartsUnavailable.btcPrice !== '$62,000.00' ||
+        marketRegression.chartsUnavailable.ethPrice !== '$1,800.00' ||
+        !marketRegression.chartsUnavailable.refreshEnabled) {
+      throw new Error('Market chart fallback regression failed: ' + JSON.stringify(marketRegression.chartsUnavailable));
+    }
+    console.log('Market snapshot success, HTTP 429, HTTP 5xx, timeout, and OHLC fallback regressions passed:', JSON.stringify(marketRegression));
+
     console.log('All deterministic offline application tests passed');
   } finally {
     await browser.close();
