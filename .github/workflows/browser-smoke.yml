@@ -190,7 +190,7 @@ jobs:
                 };
                 window.fetch = async (url, options) => {
                   const parsed = new URL(String(url));
-                  const match = parsed.pathname.match(/\/addresses\/(0x[a-f0-9]{40})(?:\\/(transactions|token-transfers))?$/i);
+                  const match = parsed.pathname.match(/\/addresses\/(0x[a-f0-9]{40})(?:\/(transactions|token-transfers))?$/i);
                   if (!match) return originalFetch(url, options);
                   const address = match[1].toLowerCase();
                   const endpoint = match[2] || 'info';
