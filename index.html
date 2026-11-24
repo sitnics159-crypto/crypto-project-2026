@@ -202,7 +202,6 @@ function renderTokenTransferList(){
  tokenLoadMore.hidden=tokenTransferVisible>=filtered.length&&!tokenTransferNext;tokenLoadMore.disabled=tokenTransferLoading;tokenExport.disabled=filtered.length===0
 }
 async function loadTokenTransfersForFilter(filter){
- if(tokenTransferLoading)return;
  const requestAddress=tokenTransferAddress,requestId=++tokenTransferGeneration;
  if(tokenTransferController)tokenTransferController.abort();
  const controller=new AbortController();tokenTransferController=controller;
