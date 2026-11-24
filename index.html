@@ -400,12 +400,28 @@ async function loadMarketSnapshot(){
   const payload=await response.json();if(payload.error&&payload.error.length)throw Error('service');
   const entries=Object.entries(payload.result||{}),btc=entries.find(([key])=>/^XXBTZUSD$|^XBTUSD$/i.test(key))?.[1],eth=entries.find(([key])=>/^XETHZUSD$|^ETHUSD$/i.test(key))?.[1];
   if(!btc||!eth)throw Error('incomplete');
-  let btcRows=null,ethRows=null,chartReady=false;
-  try{if(!btcChartResponse||!btcChartResponse.ok||!ethChartResponse||!ethChartResponse.ok)throw Error('chart');const [btcPayload,ethPayload]=await Promise.all([btcChartResponse.json(),ethChartResponse.json()]);if((btcPayload.error&&btcPayload.error.length)||(ethPayload.error&&ethPayload.error.length))throw Error('chart');const btcEntries=Object.entries(btcPayload.result||{}),ethEntries=Object.entries(ethPayload.result||{});btcRows=btcEntries.find(([key])=>/^XXBTZUSD$|^XBTUSD$/i.test(key))?.[1]||null;ethRows=ethEntries.find(([key])=>/^XETHZUSD$|^ETHUSD$/i.test(key))?.[1]||null;renderMarketChart('btc','Bitcoin',btcRows);renderMarketChart('eth','Ethereum',ethRows);chartReady=true}catch{chartReady=false}
-  const btcReferenceOpen=Array.isArray(btcRows)&&btcRows.length?Number(btcRows[0][1]):NaN,ethReferenceOpen=Array.isArray(ethRows)&&ethRows.length?Number(ethRows[0][1]):NaN;
+  const loadChart=async(response,prefix,asset,keyPattern)=>{
+   const line=document.querySelector('#'+prefix+'-chart-line'),area=document.querySelector('#'+prefix+'-chart-area'),chart=document.querySelector('#'+prefix+'-chart');
+   line.setAttribute('points','');area.setAttribute('d','');chart.removeAttribute('aria-label');
+   try{
+    if(!response||!response.ok)throw Error('chart-http');
+    const chartPayload=await response.json();if(chartPayload.error&&chartPayload.error.length)throw Error('chart-api');
+    const chartEntries=Object.entries(chartPayload.result||{}),rows=chartEntries.find(([key])=>keyPattern.test(key))?.[1]||null;
+    renderMarketChart(prefix,asset,rows);
+    const open=Array.isArray(rows)&&rows.length?Number(rows[0][1]):NaN;
+    return Number.isFinite(open)&&open>0?open:null;
+   }catch{return null}
+  };
+  const [btcOpen,ethOpen]=await Promise.all([
+   loadChart(btcChartResponse,'btc','Bitcoin',/^XXBTZUSD$|^XBTUSD$/i),
+   loadChart(ethChartResponse,'eth','Ethereum',/^XETHZUSD$|^ETHUSD$/i)
+  ]);
+  const btcChartReady=btcOpen!==null,ethChartReady=ethOpen!==null;
+  const btcReferenceOpen=btcOpen??NaN,ethReferenceOpen=ethOpen??NaN;
   setMarketCard('btc','Bitcoin',btc,btcReferenceOpen);setMarketCard('eth','Ethereum',eth,ethReferenceOpen);updateTransactionFeeEstimate();
   const changesReady=Number.isFinite(btcReferenceOpen)&&btcReferenceOpen>0&&Number.isFinite(ethReferenceOpen)&&ethReferenceOpen>0;
-  marketStatus.textContent='Обновлено '+new Intl.DateTimeFormat('ru-RU',{dateStyle:'medium',timeStyle:'short'}).format(new Date())+'. '+(changesReady?'Изменение за 24 ч рассчитано относительно первой доступной часовой свечи в интервале запроса.':'Данные для расчёта изменения за 24 ч временно недоступны.')+(chartReady?' Графики построены по часовым свечам.':' Котировки доступны, но графики временно не загрузились.');
+  const chartStatus=btcChartReady&&ethChartReady?'Графики BTC и ETH построены по часовым свечам.':btcChartReady?'График BTC построен; график ETH временно недоступен.':ethChartReady?'График ETH построен; график BTC временно недоступен.':'Графики BTC и ETH временно недоступны.';
+  marketStatus.textContent='Обновлено '+new Intl.DateTimeFormat('ru-RU',{dateStyle:'medium',timeStyle:'short'}).format(new Date())+'. '+(changesReady?'Изменение за 24 ч рассчитано относительно первой доступной часовой свечи в интервале запроса.':'Данные для расчёта изменения за 24 ч временно недоступны.')+' '+chartStatus;
  }catch(err){
   marketStatus.setAttribute('role','alert');
   marketStatus.textContent=err.name==='AbortError'?'Источник отвечает слишком долго. Нажмите «Обновить» для повтора.':err.message==='rate-limit'?'Слишком много запросов к источнику. Подождите и повторите.':'Не удалось получить котировки. Нажмите «Обновить» для повтора.';
