@@ -570,6 +570,18 @@ const path = require('node:path');
       throw new Error('Shareable address URL regression failed: ' + JSON.stringify(shareableAddressLookup));
     }
     console.log('Shareable address URL restoration passed:', JSON.stringify(shareableAddressLookup));
+    const csvState = await page.evaluate(() => ({
+      itemCount: tokenTransferItems.length,
+      address: tokenTransferAddress,
+      filter: tokenTransferFilter,
+      exportDisabled: tokenExport.disabled,
+      listStatus: tokenListStatus.textContent,
+      items: tokenTransferItems.map(item => ({ hash: item.transaction_hash, from: item.from?.hash, to: item.to?.hash }))
+    }));
+    console.log('CSV export fixture state:', JSON.stringify(csvState));
+    if (csvState.itemCount !== 2 || csvState.exportDisabled) {
+      throw new Error('CSV export fixture did not enable the export button: ' + JSON.stringify(csvState));
+    }
 
     const readCsvDownload = async () => {
       const download = await page.waitForEvent('download', () => page.locator('#token-export').click());
