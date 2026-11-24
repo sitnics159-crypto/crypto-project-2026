@@ -64,7 +64,7 @@ const API='https://eth-sepolia.blockscout.com/api/v2/transactions/';const EXPLOR
 function setShareableLookup(kind,value){const url=new URL(window.location.href);url.searchParams.delete('tx');url.searchParams.delete('address');url.searchParams.set(kind,value);window.history.replaceState(null,'',url)}
 function restoreShareableLookup(){const params=new URLSearchParams(window.location.search),tx=params.get('tx'),address=params.get('address');if(tx){input.value=tx;form.requestSubmit()}else if(address){addressInput.value=address;addressForm.requestSubmit()}}
 
-function weiToEth(value){if(value===null||value===undefined||value==='')return 'Не удалось определить';try{const wei=BigInt(String(value)),whole=wei/1000000000000000000n,fraction=(wei%1000000000000000000n).toString().padStart(18,'0').slice(0,8).replace(/0+$/,'');if(whole===0n&&!fraction)return '0 ETH';return String(whole)+(fraction?'.'+fraction:'')+' ETH'}catch{return 'Не удалось определить'}}
+function weiToEth(value,maxFractionDigits=8){if(value===null||value===undefined||value==='')return 'Не удалось определить';try{const wei=BigInt(String(value)),whole=wei/1000000000000000000n,fraction=(wei%1000000000000000000n).toString().padStart(18,'0').slice(0,maxFractionDigits).replace(/0+$/,'');if(whole===0n&&!fraction)return '0 ETH';return String(whole)+(fraction?'.'+fraction:'')+' ETH'}catch{return 'Не удалось определить'}}
 function statusOf(tx){const raw=String(tx.status||tx.result||'').toLowerCase();if(tx.block_number===null||tx.block_number===undefined)return{label:'Ожидает подтверждения',kind:'pending',key:'pending'};if(/success|ok|confirmed/.test(raw))return{label:'Выполнена',kind:'success',key:'success'};if(/fail|error|revert|dropped|invalid/.test(raw))return{label:'Не выполнена',kind:'failed',key:'failed'};return{label:'В блоке · статус не определён',kind:'',key:'unknown'}}
 function addressOf(item){const value=item&&typeof item==='object'?item.hash:item;return typeof value==='string'&&value?value:'Не указан в данных'}
 function transactionTypes(tx){return Array.isArray(tx.transaction_types)?tx.transaction_types.filter(value=>typeof value==='string').map(value=>value.toLowerCase()):[]}
@@ -97,7 +97,7 @@ function explain(tx,s){
 }
 let latestEthUsdPrice=null,lastTransactionFeeWei=null;
 function formatFeeDisplay(value){
- const eth=weiToEth(value);if(!Number.isFinite(latestEthUsdPrice)||latestEthUsdPrice<=0)return eth;
+ const eth=weiToEth(value,18);if(!Number.isFinite(latestEthUsdPrice)||latestEthUsdPrice<=0)return eth;
  try{const wei=BigInt(String(value)),priceCents=BigInt(Math.round(latestEthUsdPrice*100)),cents=wei*priceCents/1000000000000000000n;return eth+' (≈ '+usdFormat.format(Number(cents)/100)+' по текущей цене ETH)'}catch{return eth}
 }
 function updateTransactionFeeEstimate(){if(lastTransactionFeeWei!==null)put('#r-fee',formatFeeDisplay(lastTransactionFeeWei))}
