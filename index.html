@@ -341,17 +341,29 @@ addressForm.addEventListener('submit',async event=>{
  const controller=new AbortController();addressLookupController=controller;const timeout=setTimeout(()=>controller.abort(),15000);
  try{
   const base=ADDRESS_API+encodeURIComponent(address);addressTxCurrent=address;
-  const responses=await Promise.all([fetch(base,{headers:{Accept:'application/json'},signal:controller.signal}),fetch(base+'/transactions',{headers:{Accept:'application/json'},signal:controller.signal}),fetch(base+'/token-transfers?type=ERC-20',{headers:{Accept:'application/json'},signal:controller.signal})]);
-  if(responses.some(r=>r.status===404))throw Error('not-found');
-  if(responses.some(r=>r.status===429))throw Error('rate-limit');
-  if(responses.some(r=>!r.ok))throw Error('service');
-  const [info,activity,tokenActivity]=await Promise.all(responses.map(r=>r.json()));
+  const requests=await Promise.allSettled([fetch(base,{headers:{Accept:'application/json'},signal:controller.signal}),fetch(base+'/transactions',{headers:{Accept:'application/json'},signal:controller.signal}),fetch(base+'/token-transfers?type=ERC-20',{headers:{Accept:'application/json'},signal:controller.signal})]);
   if(requestId!==addressLookupGeneration)return;
-  if(!info||!info.hash||!Array.isArray(activity.items)||!Array.isArray(tokenActivity.items))throw Error('incomplete');
+  if(requests[0].status==='rejected')throw requests[0].reason;
+  const infoResponse=requests[0].value;
+  if(infoResponse.status===404)throw Error('not-found');
+  if(infoResponse.status===429)throw Error('rate-limit');
+  if(!infoResponse.ok)throw Error('service');
+  const info=await infoResponse.json();
+  if(!info||!info.hash)throw Error('incomplete');
+  const readOptionalActivity=async result=>{
+   if(result.status==='rejected')return{data:null,error:result.reason&&result.reason.name==='AbortError'?'Запрос выполняется слишком долго. Повторите поиск адреса для загрузки этого раздела.':'Не удалось загрузить этот раздел. Повторите поиск адреса.'};
+   const response=result.value;
+   if(response.status===429)return{data:null,error:'Blockscout ограничил частоту запросов для этого раздела. Повторите поиск адреса позже.'};
+   if(!response.ok)return{data:null,error:'Не удалось загрузить этот раздел. Повторите поиск адреса.'};
+   try{const data=await response.json();if(!data||!Array.isArray(data.items))return{data:null,error:'Источник вернул неполные данные для этого раздела. Повторите поиск адреса.'};return{data,error:''}}
+   catch{return{data:null,error:'Источник вернул некорректные данные для этого раздела. Повторите поиск адреса.'}}
+  };
+  const [activityResult,tokenResult]=await Promise.all([readOptionalActivity(requests[1]),readOptionalActivity(requests[2])]);
+  if(requestId!==addressLookupGeneration)return;
   put('#a-hash',info.hash);put('#a-balance',weiToEth(info.coin_balance));put('#a-type',info.is_contract?'Смарт-контракт':'Обычный адрес');put('#a-scam-label',info.is_scam===true?'Blockscout помечает как потенциально мошеннический':'Метка Blockscout scam не показана; это не подтверждает безопасность адреса');
   const flags=[];if(info.has_tokens)flags.push('есть токены');if(info.has_token_transfers)flags.push('есть переводы токенов');put('#a-tokens',flags.length?flags.join(' · '):'не обнаружены обозревателем');
-  addressTxItems=activity.items.filter(tx=>tx&&typeof tx.hash==='string');addressTxNext=activity.next_page_params||null;addressTxVisible=5;addressTxLoadError='';renderAddressTxList();
-  tokenTransferAddress=address;tokenTransferItems=tokenActivity.items.filter(item=>item&&typeof item.transaction_hash==='string');tokenTransferNext=tokenActivity.next_page_params||null;tokenTransferFilter='all';tokenTransferVisible=5;tokenTransferLoadError='';tokenFilterButtons.forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.tokenFilter==='all')));renderTokenTransferList();
+  addressTxItems=activityResult.data?activityResult.data.items.filter(tx=>tx&&typeof tx.hash==='string'):[];addressTxNext=activityResult.data&&activityResult.data.next_page_params||null;addressTxVisible=5;addressTxLoadError=activityResult.error;renderAddressTxList();
+  tokenTransferAddress=address;tokenTransferItems=tokenResult.data?tokenResult.data.items.filter(item=>item&&typeof item.transaction_hash==='string'):[];tokenTransferNext=tokenResult.data&&tokenResult.data.next_page_params||null;tokenTransferFilter='all';tokenTransferVisible=5;tokenTransferLoadError=tokenResult.error;tokenFilterButtons.forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.tokenFilter==='all')));renderTokenTransferList();
   document.querySelector('#address-explorer').href='https://eth-sepolia.blockscout.com/address/'+encodeURIComponent(address);
   addressResult.hidden=false;
  }catch(err){
