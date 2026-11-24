@@ -1,0 +1,13 @@
+{
+  "rateLimit": {
+    "status": 429,
+    "expected": "Слишком много запросов"
+  },
+  "serverError": {
+    "status": 503,
+    "expected": "Не удалось получить данные Blockscout"
+  },
+  "timeout": {
+    "expected": "слишком долго"
+  }
+}

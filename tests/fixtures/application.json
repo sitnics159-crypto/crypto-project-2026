@@ -1,0 +1,26 @@
+{
+  "transaction": {
+    "status": "ok",
+    "block_number": 123456,
+    "value": "1000000000000000000",
+    "transaction_types": [
+      "token_transfer"
+    ]
+  },
+  "transfer": {
+    "total": {
+      "value": "1234500",
+      "decimals": "4"
+    },
+    "token": {
+      "symbol": "FIX"
+    }
+  },
+  "csvFormula": "=HYPERLINK(\"https://example.invalid\")",
+  "expected": {
+    "type": "Перевод токена",
+    "status": "success",
+    "amount": "123.45",
+    "exactAmount": "123.45"
+  }
+}
