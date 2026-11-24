@@ -60,7 +60,20 @@ const axe = require('axe-core');
             }))
           })),
           passes: results.passes.length,
-          incomplete: results.incomplete.length
+          incomplete: results.incomplete.map(item => ({
+            id: item.id,
+            impact: item.impact,
+            help: item.help,
+            description: item.description,
+            helpUrl: item.helpUrl,
+            nodes: item.nodes.slice(0, 5).map(node => ({
+              target: node.target,
+              html: node.html,
+              any: node.any.map(check => ({ id: check.id, message: check.message })),
+              all: node.all.map(check => ({ id: check.id, message: check.message })),
+              none: node.none.map(check => ({ id: check.id, message: check.message }))
+            }))
+          }))
         };
       });
 
