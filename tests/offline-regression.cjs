@@ -616,7 +616,7 @@ const path = require('node:path');
         allCsv.rows[2][0] !== '0x' + '2'.repeat(64) ||
         allCsv.rows[2][8] !== '0.007' || allCsv.rows[2][9] !== '7000000000000000' ||
         allCsv.rows[2][10] !== '18' ||
-        allCsv.rows[2][5] !== "'=HYPERLINK(\"https://example.com\")'" ||
+        allCsv.rows[2][5] !== "'=HYPERLINK(\"https://example.com\")" ||
         !allCsv.raw.includes('"\'=HYPERLINK(""https://example.com"")"')) {
       throw new Error('CSV all-transfers export regression failed: ' + JSON.stringify(allCsv));
     }
