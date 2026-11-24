@@ -467,6 +467,47 @@ const path = require('node:path');
     }
     console.log('Market snapshot success, HTTP 429, HTTP 5xx, timeout, and OHLC fallback regressions passed:', JSON.stringify(marketRegression));
 
+    // Verify that a saved transaction URL restores the lookup automatically.
+    const shareableHash = transactionFixture.hash;
+    const shareableTransaction = transactionFixture.transactions.find(item => item.name === 'success').data;
+    await page.addInitScript(({ hash, transaction }) => {
+      const originalFetch = window.fetch.bind(window);
+      window.__shareableLookupFetches = 0;
+      window.fetch = (url, options) => {
+        if (String(url).includes('/api/v2/transactions/' + hash)) {
+          window.__shareableLookupFetches++;
+          return Promise.resolve(new Response(JSON.stringify(transaction), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
+          }));
+        }
+        return originalFetch(url, options);
+      };
+    }, { hash: shareableHash, transaction: shareableTransaction });
+    await page.goto('http://127.0.0.1:4173/?tx=' + encodeURIComponent(shareableHash), { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() =>
+      !document.querySelector('#result').hidden || !document.querySelector('#error').hidden,
+      { timeout: 10000 }
+    );
+    const shareableLookup = await page.evaluate(() => ({
+      input: document.querySelector('#tx-hash').value,
+      displayedHash: document.querySelector('#r-hash').textContent,
+      status: document.querySelector('#r-status').textContent,
+      resultVisible: !document.querySelector('#result').hidden,
+      errorVisible: !document.querySelector('#error').hidden,
+      fetches: window.__shareableLookupFetches,
+      queryHash: new URLSearchParams(window.location.search).get('tx')
+    }));
+    if (!shareableLookup.resultVisible || shareableLookup.errorVisible ||
+        shareableLookup.input !== shareableHash ||
+        shareableLookup.displayedHash !== shareableHash ||
+        shareableLookup.status !== 'Выполнена' ||
+        shareableLookup.fetches !== 1 ||
+        shareableLookup.queryHash !== shareableHash) {
+      throw new Error('Shareable transaction URL regression failed: ' + JSON.stringify(shareableLookup));
+    }
+    console.log('Shareable transaction URL restoration passed:', JSON.stringify(shareableLookup));
+
     console.log('All deterministic offline application tests passed');
   } finally {
     await browser.close();
