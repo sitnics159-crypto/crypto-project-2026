@@ -330,13 +330,13 @@ const path = require('node:path');
         const incomplete = await run('incomplete');
         const rateLimit = await run('rate-limit');
         const serverError = await run('server-error');
-        const timeout = await run('timeout');
         const failedState = {
           message: addressError.textContent,
           buttonEnabled: !addressButton.disabled,
           loadingHidden: addressLoading.hidden,
           resultHidden: addressResult.hidden
         };
+        const timeout = await run('timeout');
         let recoveryRequests = 0;
         window.setTimeout = originalSetTimeout;
         window.fetch = async url => {
