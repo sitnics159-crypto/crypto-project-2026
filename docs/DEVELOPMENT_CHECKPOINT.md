@@ -94,6 +94,22 @@ The repository ruleset was independently read from GitHub on 2026-11-24:
 3. Complete the MVP 1.0 release-readiness audit, including API failure behavior and the documented security boundaries.
 4. Select an appropriate project license before adding a `LICENSE`; do not assume one.
 
+## Accessibility follow-up (2026-11-24)
+
+- PR #59 responsive/WCAG baseline passed at 320px, 390px, and 768px: no horizontal overflow, both primary inputs visible, 26 axe checks passed per viewport, and zero automated violations.
+- The single axe `incomplete` result is rule `color-contrast`, not a confirmed violation. Axe could not determine backgrounds because the page uses a CSS gradient.
+- Diagnostic PR #61: https://github.com/sitnics159-crypto/crypto-project-2026/pull/61. It logs the incomplete rule, help text, selectors, HTML snippets, and check messages. All three CI workflows passed on head `1a97ff062fd8d6fcd1455395949340680d0f996f`. PR remains open and unmerged.
+- Manual contrast calculation against the lightest sampled gradient stop `#44327a` gave: `#9eabc2` 4.57:1; `#baf6de` 8.74:1; `#c7b8ff` 5.91:1; `#d6c8ff` 6.84:1. Each exceeds the 4.5:1 AA threshold for normal text where applicable. The decorative diamond is non-text and is not evaluated as text.
+- This was a targeted contrast check of the five reported header/intro nodes, not a complete manual audit of every page state or assistive-technology workflow. No application CSS change was needed from this review.
+
+## Current session
+
+- Date: 2026-11-24.
+- Main remains `0673cef328cc378c8189a7a8cc6d1306ea8dc5aa`; no application code or deployment changes were made during the accessibility follow-up.
+- Documentation branch: `docs/checkpoint-after-pr59-2026-11-24`; existing documentation PR #60 remains open and unmerged.
+- Diagnostic PR #61 remains open and unmerged; its three CI workflows passed.
+- Next action: complete the broader MVP 1.0 release-readiness audit, including API failure behavior, keyboard/assistive-technology checks, and documented security boundaries.
+
 ## Session protocol
 
 - Start by reading this checkpoint and `.github/CONTINUOUS_DEVELOPMENT_SYSTEM.md`, then refresh GitHub state.
