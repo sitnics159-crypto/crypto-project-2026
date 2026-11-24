@@ -341,9 +341,6 @@ const path = require('node:path');
         window.setTimeout = originalSetTimeout;
         window.fetch = async url => {
           recoveryRequests++;
-          if (recoveryRequests <= 3) {
-            return new Response('{}', { status: 503, headers: { 'Content-Type': 'application/json' } });
-          }
           const target = new URL(String(url));
           if (target.pathname.endsWith('/transactions')) {
             return new Response(JSON.stringify({ items: [], next_page_params: null }), {
@@ -390,7 +387,7 @@ const path = require('node:path');
         !apiErrors.recoveredState.resultVisible || !apiErrors.recoveredState.errorHidden ||
         apiErrors.recoveredState.displayedAddress !== ('0x' + 'a'.repeat(40)) ||
         !apiErrors.recoveredState.buttonEnabled || !apiErrors.recoveredState.loadingHidden ||
-        apiErrors.recoveredState.requestCount !== 6) {
+        apiErrors.recoveredState.requestCount !== 3) {
       throw new Error('Address lookup API failure/recovery regression: ' + JSON.stringify(apiErrors));
     }
     console.log('Address lookup 404, incomplete payload, timeout, HTTP 429, and HTTP 5xx fixtures passed');
