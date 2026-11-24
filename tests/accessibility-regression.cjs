@@ -237,7 +237,7 @@ const axe = require('axe-core');
     await page.waitForFunction(() => document.querySelector('#address-tx-status')?.textContent.includes('Показано 2 из 2'));
 
     await page.locator('#token-load-more').click();
-    await page.waitForFunction(() => document.querySelector('#token-list-status')?.textContent.includes('Загружаем следующую страницу'));
+    await page.waitForFunction(() => document.querySelector('#token-load-more')?.textContent === 'Загружаем…');
     const tokenPaginationLoadingAudit = await auditCurrentState('token transfer pagination loading');
     await page.waitForFunction(() => document.querySelector('#token-list-status')?.textContent.includes('Показано 2 из 2'));
 
