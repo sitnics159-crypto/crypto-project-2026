@@ -743,6 +743,10 @@ const path = require('node:path');
       const txSecond = '0x' + '2'.repeat(64);
       const tokenFirst = '0x' + '3'.repeat(64);
       const tokenSecond = '0x' + '4'.repeat(64);
+      const incomingSecond = '0x' + '5'.repeat(64);
+      const outgoingFirst = '0x' + '6'.repeat(64);
+      const outgoingSecond = '0x' + '7'.repeat(64);
+      const tokenFilterRequests = [];
       const response = (status, body) => new Response(JSON.stringify(body), {
         status, headers: { 'Content-Type': 'application/json' }
       });
@@ -777,7 +781,44 @@ const path = require('node:path');
           });
         }
         if (parsed.pathname === '/api/v2/addresses/' + address + '/token-transfers') {
-          if (!parsed.searchParams.has('block_number')) return response(200, {
+          const filter = parsed.searchParams.get('filter') || 'all';
+          const paged = parsed.searchParams.has('block_number');
+          tokenFilterRequests.push({ filter, paged, type: parsed.searchParams.get('type') });
+          if (filter === 'to') {
+            return response(200, paged ? {
+              items: [{
+                transaction_hash: incomingSecond, log_index: 2, token_type: 'ERC-20',
+                from: { hash: '0x' + 'd'.repeat(40) }, to: { hash: address },
+                token: { address_hash: '0x' + 'b'.repeat(40), symbol: 'PAGE' },
+                total: { value: '3', decimals: '0' }, block_number: 8
+              }], next_page_params: null
+            } : {
+              items: [{
+                transaction_hash: tokenFirst, log_index: 0, token_type: 'ERC-20',
+                from: { hash: '0x' + 'a'.repeat(40) }, to: { hash: address },
+                token: { address_hash: '0x' + 'b'.repeat(40), symbol: 'PAGE' },
+                total: { value: '1', decimals: '0' }, block_number: 10
+              }], next_page_params: { block_number: 8, index: 0 }
+            });
+          }
+          if (filter === 'from') {
+            return response(200, paged ? {
+              items: [{
+                transaction_hash: outgoingSecond, log_index: 3, token_type: 'ERC-20',
+                from: { hash: address }, to: { hash: '0x' + 'e'.repeat(40) },
+                token: { address_hash: '0x' + 'b'.repeat(40), symbol: 'PAGE' },
+                total: { value: '4', decimals: '0' }, block_number: 8
+              }], next_page_params: null
+            } : {
+              items: [{
+                transaction_hash: outgoingFirst, log_index: 1, token_type: 'ERC-20',
+                from: { hash: address }, to: { hash: '0x' + 'c'.repeat(40) },
+                token: { address_hash: '0x' + 'b'.repeat(40), symbol: 'PAGE' },
+                total: { value: '2', decimals: '0' }, block_number: 9
+              }], next_page_params: { block_number: 8, index: 0 }
+            });
+          }
+          if (!paged) return response(200, {
             items: [{
               transaction_hash: tokenFirst, log_index: 0, token_type: 'ERC-20',
               from: { hash: '0x' + 'a'.repeat(40) }, to: { hash: address },
@@ -813,6 +854,28 @@ const path = require('node:path');
         addressInput.value = address;
         addressForm.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
         await waitFor(() => !addressResult.hidden && addressTxItems.length === 1 && tokenTransferItems.length === 1);
+        tokenFilterButtons.find(button => button.dataset.tokenFilter === 'incoming').click();
+        await waitFor(() => !tokenTransferLoading && tokenTransferItems.length === 1 && tokenTransferItems[0].transaction_hash === tokenFirst);
+        if (tokenFilterRequests.at(-1)?.filter !== 'to' || tokenFilterRequests.at(-1)?.type !== 'ERC-20') {
+          throw new Error('Incoming filter did not request Blockscout filter=to: ' + JSON.stringify(tokenFilterRequests));
+        }
+        await loadMoreTokenTransfers();
+        if (tokenTransferItems.length !== 2 || tokenTransferItems[1].transaction_hash !== incomingSecond ||
+            tokenFilterRequests.at(-1)?.filter !== 'to' || !tokenFilterRequests.at(-1)?.paged) {
+          throw new Error('Incoming filtered pagination failed: ' + JSON.stringify(tokenFilterRequests));
+        }
+        tokenFilterButtons.find(button => button.dataset.tokenFilter === 'outgoing').click();
+        await waitFor(() => !tokenTransferLoading && tokenTransferItems.length === 1 && tokenTransferItems[0].transaction_hash === outgoingFirst);
+        if (tokenFilterRequests.at(-1)?.filter !== 'from' || tokenFilterRequests.at(-1)?.type !== 'ERC-20') {
+          throw new Error('Outgoing filter did not request Blockscout filter=from: ' + JSON.stringify(tokenFilterRequests));
+        }
+        await loadMoreTokenTransfers();
+        if (tokenTransferItems.length !== 2 || tokenTransferItems[1].transaction_hash !== outgoingSecond ||
+            tokenFilterRequests.at(-1)?.filter !== 'from' || !tokenFilterRequests.at(-1)?.paged) {
+          throw new Error('Outgoing filtered pagination failed: ' + JSON.stringify(tokenFilterRequests));
+        }
+        tokenFilterButtons.find(button => button.dataset.tokenFilter === 'all').click();
+        await waitFor(() => !tokenTransferLoading && tokenTransferItems.length === 1 && tokenTransferFilter === 'all');
         for (const mode of ['rate-limit', 'server-error', 'incomplete', 'timeout']) {
           txMode = mode;
           if (mode === 'timeout') {
