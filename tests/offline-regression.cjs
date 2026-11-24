@@ -25,14 +25,14 @@ const path = require('node:path');
     // Keep the static CSP hash synchronized with the sole inline application script.
     const sourceHtml = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
     const cspMatch = sourceHtml.match(/<meta http-equiv="Content-Security-Policy" content="([^"]+)">/i);
-    const inlineScripts = [...sourceHtml.matchAll(/<script\\b[^>]*>([\\s\\S]*?)<\\/script>/gi)];
+    const inlineScripts = [...sourceHtml.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)];
     if (!cspMatch || inlineScripts.length !== 1) {
       throw new Error('Expected one inline application script and a meta CSP policy');
     }
     const expectedScriptHash = "'sha256-" +
       crypto.createHash('sha256').update(inlineScripts[0][1], 'utf8').digest('base64') + "'";
     const cspDirectives = new Map(cspMatch[1].split(';').map(part => {
-      const [name, ...values] = part.trim().split(/\\s+/);
+      const [name, ...values] = part.trim().split(/\s+/);
       return [name, values.join(' ')];
     }));
     const scriptSources = cspDirectives.get('script-src') || '';
