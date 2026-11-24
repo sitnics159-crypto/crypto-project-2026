@@ -27,7 +27,7 @@ const path = require('node:path');
       transactionInputSize: getComputedStyle(document.querySelector('#tx-hash')).fontSize,
       addressInputSize: getComputedStyle(document.querySelector('#address-input')).fontSize,
       focusRule: [...document.styleSheets].some(sheet => {
-        try { return [...sheet.cssRules].some(rule => rule.selectorText === ':where(button,a,input,[tabindex]):focus-visible'); }
+        try { return [...sheet.cssRules].some(rule => rule.cssText.includes(':focus-visible') && rule.cssText.includes('outline: 3px solid')); }
         catch { return false; }
       })
     }));
