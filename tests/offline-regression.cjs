@@ -642,6 +642,159 @@ const path = require('node:path');
     }
     console.log('CSV download, 13-column schema, exact amounts, escaping, and all/incoming/outgoing filters passed');
 
+    // Verify address transaction/token pagination failures preserve state and can be retried.
+    const paginationRegression = await page.evaluate(async () => {
+      const originalFetch = window.fetch;
+      const originalSetTimeout = window.setTimeout;
+      const address = '0x' + 'f'.repeat(40);
+      let txMode = 'success';
+      let tokenMode = 'success';
+      const txFirst = '0x' + '1'.repeat(64);
+      const txSecond = '0x' + '2'.repeat(64);
+      const tokenFirst = '0x' + '3'.repeat(64);
+      const tokenSecond = '0x' + '4'.repeat(64);
+      const response = (status, body) => new Response(JSON.stringify(body), {
+        status, headers: { 'Content-Type': 'application/json' }
+      });
+      const pageResponse = (mode, payload) => {
+        if (mode === 'rate-limit') return response(429, {});
+        if (mode === 'server-error') return response(503, {});
+        if (mode === 'incomplete') return response(200, {});
+        if (mode === 'timeout') return new Promise((resolve, reject) => {
+          // The application timeout aborts this deterministic pending request.
+          const signal = window.__paginationSignal;
+          signal?.addEventListener('abort', () =>
+            reject(new DOMException('Aborted', 'AbortError')), { once: true });
+        });
+        return response(200, payload);
+      };
+      window.fetch = async (url, options = {}) => {
+        const parsed = new URL(String(url));
+        const base = 'https://eth-sepolia.blockscout.com/api/v2/addresses/' + address;
+        if (parsed.href === base) return response(200, {
+          hash: address, coin_balance: '0', is_contract: false,
+          is_scam: false, has_tokens: true, has_token_transfers: true
+        });
+        if (parsed.pathname === '/api/v2/addresses/' + address + '/transactions') {
+          if (!parsed.searchParams.has('block_number')) return response(200, {
+            items: [{ hash: txFirst, value: '1', block_number: 10 }],
+            next_page_params: { block_number: 9, index: 0 }
+          });
+          window.__paginationSignal = options.signal;
+          return pageResponse(txMode, {
+            items: [{ hash: txSecond, value: '2', block_number: 9 }],
+            next_page_params: null
+          });
+        }
+        if (parsed.pathname === '/api/v2/addresses/' + address + '/token-transfers') {
+          if (!parsed.searchParams.has('block_number')) return response(200, {
+            items: [{
+              transaction_hash: tokenFirst, log_index: 0, token_type: 'ERC-20',
+              from: { hash: '0x' + 'a'.repeat(40) }, to: { hash: address },
+              token: { address_hash: '0x' + 'b'.repeat(40), symbol: 'PAGE' },
+              total: { value: '1', decimals: '0' }, block_number: 10
+            }],
+            next_page_params: { block_number: 9, index: 0 }
+          });
+          window.__paginationSignal = options.signal;
+          return pageResponse(tokenMode, {
+            items: [{
+              transaction_hash: tokenSecond, log_index: 1, token_type: 'ERC-20',
+              from: { hash: address }, to: { hash: '0x' + 'c'.repeat(40) },
+              token: { address_hash: '0x' + 'b'.repeat(40), symbol: 'PAGE' },
+              total: { value: '2', decimals: '0' }, block_number: 9
+            }],
+            next_page_params: null
+          });
+        }
+        throw new Error('Unexpected pagination fixture request: ' + parsed.href);
+      };
+      const wait = ms => new Promise(resolve => originalSetTimeout(resolve, ms));
+      const waitFor = async predicate => {
+        for (let attempt = 0; attempt < 200; attempt++) {
+          if (predicate()) return;
+          await wait(5);
+        }
+        throw new Error('Pagination fixture timed out');
+      };
+      const txErrors = [];
+      const tokenErrors = [];
+      try {
+        addressInput.value = address;
+        addressForm.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+        await waitFor(() => !addressResult.hidden && addressTxItems.length === 1 && tokenTransferItems.length === 1);
+        for (const mode of ['rate-limit', 'server-error', 'incomplete', 'timeout']) {
+          txMode = mode;
+          if (mode === 'timeout') {
+            window.setTimeout = (callback, delay, ...args) =>
+              originalSetTimeout(callback, delay === 15000 ? 0 : delay, ...args);
+          }
+          await loadMoreAddressTx();
+          const state = {
+            mode, message: addressTxStatus.textContent,
+            count: addressTxItems.length, hasNext: Boolean(addressTxNext),
+            loading: addressTxLoading, disabled: addressTxLoadMore.disabled,
+            visible: !addressTxLoadMore.hidden
+          };
+          const expected = mode === 'rate-limit' ? 'ограничил частоту' :
+            mode === 'timeout' ? 'слишком долго' : 'Не удалось загрузить следующую страницу';
+          if (!state.message.includes(expected) || state.count !== 1 || !state.hasNext ||
+              state.loading || state.disabled || !state.visible) {
+            throw new Error('Address transaction pagination ' + mode + ' state mismatch: ' + JSON.stringify(state));
+          }
+          txErrors.push(mode);
+          if (mode === 'timeout') window.setTimeout = originalSetTimeout;
+        }
+        txMode = 'success';
+        await loadMoreAddressTx();
+        if (addressTxItems.length !== 2 || addressTxItems[1].hash !== txSecond ||
+            addressTxNext || addressTxLoadError || addressTxLoading || addressTxLoadMore.disabled) {
+          throw new Error('Address transaction pagination retry failed: ' + JSON.stringify({
+            count: addressTxItems.length, next: addressTxNext, error: addressTxLoadError,
+            loading: addressTxLoading, disabled: addressTxLoadMore.disabled
+          }));
+        }
+
+        for (const mode of ['rate-limit', 'server-error', 'incomplete', 'timeout']) {
+          tokenMode = mode;
+          if (mode === 'timeout') {
+            window.setTimeout = (callback, delay, ...args) =>
+              originalSetTimeout(callback, delay === 15000 ? 0 : delay, ...args);
+          }
+          await loadMoreTokenTransfers();
+          const state = {
+            mode, message: tokenListStatus.textContent,
+            count: tokenTransferItems.length, hasNext: Boolean(tokenTransferNext),
+            loading: tokenTransferLoading, disabled: tokenLoadMore.disabled,
+            visible: !tokenLoadMore.hidden
+          };
+          const expected = mode === 'rate-limit' ? 'ограничил частоту' :
+            mode === 'timeout' ? 'слишком долго' : 'Не удалось загрузить следующую страницу переводов';
+          if (!state.message.includes(expected) || state.count !== 1 || !state.hasNext ||
+              state.loading || state.disabled || !state.visible) {
+            throw new Error('Token transfer pagination ' + mode + ' state mismatch: ' + JSON.stringify(state));
+          }
+          tokenErrors.push(mode);
+          if (mode === 'timeout') window.setTimeout = originalSetTimeout;
+        }
+        tokenMode = 'success';
+        await loadMoreTokenTransfers();
+        if (tokenTransferItems.length !== 2 || tokenTransferItems[1].transaction_hash !== tokenSecond ||
+            tokenTransferNext || tokenTransferLoadError || tokenTransferLoading || tokenLoadMore.disabled) {
+          throw new Error('Token transfer pagination retry failed: ' + JSON.stringify({
+            count: tokenTransferItems.length, next: tokenTransferNext, error: tokenTransferLoadError,
+            loading: tokenTransferLoading, disabled: tokenLoadMore.disabled
+          }));
+        }
+        return { txErrors, tokenErrors, txRows: addressTxItems.length, tokenRows: tokenTransferItems.length };
+      } finally {
+        window.fetch = originalFetch;
+        window.setTimeout = originalSetTimeout;
+        delete window.__paginationSignal;
+      }
+    });
+    console.log('Address transaction and token-transfer pagination error/retry matrix passed:', JSON.stringify(paginationRegression));
+
     console.log('All deterministic offline application tests passed');
   } finally {
     await browser.close();
