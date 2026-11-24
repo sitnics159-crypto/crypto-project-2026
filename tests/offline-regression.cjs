@@ -7,6 +7,7 @@ const path = require('node:path');
   const paginationFixture = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'pagination.json'), 'utf8'));
   const staleFixture = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'stale-requests.json'), 'utf8'));
   const apiErrorFixture = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'api-errors.json'), 'utf8'));
+  const transactionFixture = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'transaction-states.json'), 'utf8'));
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
   page.on('pageerror', error => { throw error; });
@@ -271,6 +272,96 @@ const path = require('node:path');
       throw new Error('API failure handling regression: ' + JSON.stringify(apiErrors));
     }
     console.log('Timeout, HTTP 429, and HTTP 5xx fixtures passed');
+    // Exercise transaction rendering and request failures using local fixtures only.
+    const transactionRegression = await page.evaluate(async fixture => {
+      const originalFetch = window.fetch;
+      const originalSetTimeout = window.setTimeout;
+      const submit = async hash => {
+        result.hidden = true;
+        errorBox.hidden = true;
+        input.value = hash;
+        form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+        for (let attempt = 0; attempt < 100; attempt++) {
+          await new Promise(resolve => originalSetTimeout(resolve, 5));
+          if (!result.hidden || !errorBox.hidden) return;
+        }
+        throw new Error('Timed out waiting for transaction lookup result');
+      };
+      const checks = [];
+      try {
+        for (const item of fixture.transactions) {
+          window.fetch = async () => ({
+            ok: true, status: 200, json: async () => item.data
+          });
+          await submit(fixture.hash);
+          const actual = {
+            status: document.querySelector('#r-status').textContent,
+            value: document.querySelector('#r-value').textContent,
+            fee: document.querySelector('#r-fee').textContent,
+            block: document.querySelector('#r-block').textContent,
+            from: document.querySelector('#r-from').textContent,
+            to: document.querySelector('#r-to').textContent,
+            time: document.querySelector('#r-time').textContent,
+            explanation: document.querySelector('#r-explanation').textContent
+          };
+          for (const [key, expected] of Object.entries(item.expected)) {
+            if (key === 'explanation') {
+              if (!actual.explanation.includes(expected)) throw new Error(item.name + ' explanation mismatch: ' + actual.explanation);
+            } else if (key === 'time') {
+              if (actual.time !== expected) throw new Error(item.name + ' time mismatch: ' + actual.time);
+            } else if (actual[key] !== expected) {
+              throw new Error(item.name + ' ' + key + ' mismatch: expected "' + expected + '", got "' + actual[key] + '"');
+            }
+          }
+          if (item.name === 'success' && actual.time === 'Не удалось определить') {
+            throw new Error('Valid transaction timestamp was not rendered');
+          }
+          checks.push(item.name);
+        }
+
+        const errorCases = [
+          { name: 'not-found', status: 404, expected: fixture.errors.notFound },
+          { name: 'rate-limit', status: 429, expected: fixture.errors.rateLimit },
+          { name: 'server', status: 503, expected: fixture.errors.server },
+          { name: 'incomplete', status: 200, body: {}, expected: fixture.errors.incomplete }
+        ];
+        const errors = {};
+        for (const item of errorCases) {
+          window.fetch = async () => ({
+            ok: item.status >= 200 && item.status < 300,
+            status: item.status,
+            json: async () => item.body || {}
+          });
+          await submit(fixture.hash);
+          errors[item.name] = errorBox.textContent;
+          if (result.hidden !== true || errorBox.hidden || !errors[item.name].includes(item.expected)) {
+            throw new Error('Transaction ' + item.name + ' error state mismatch: ' + errors[item.name]);
+          }
+        }
+
+        window.fetch = async () => new Promise((resolve, reject) => {
+          // AbortSignal is intentionally honored to test the visible timeout path.
+          const signal = arguments.length > 1 ? arguments[1]?.signal : null;
+          signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true });
+        });
+        window.setTimeout = (callback, delay, ...args) =>
+          originalSetTimeout(callback, delay === 15000 ? 0 : delay, ...args);
+        await submit(fixture.hash);
+        errors.timeout = errorBox.textContent;
+        if (!errors.timeout.includes('слишком долго')) throw new Error('Transaction timeout message mismatch: ' + errors.timeout);
+
+        window.fetch = async () => { throw new Error('Unexpected network request for invalid hash'); };
+        await submit('0x1234');
+        errors.invalidHash = errorBox.textContent;
+        if (!errors.invalidHash.includes('Проверьте формат')) throw new Error('Invalid hash was not rejected before fetch');
+
+        return { states: checks, errors };
+      } finally {
+        window.fetch = originalFetch;
+        window.setTimeout = originalSetTimeout;
+      }
+    }, transactionFixture);
+    console.log('Transaction state matrix passed:', JSON.stringify(transactionRegression));
     console.log('All deterministic offline application tests passed');
   } finally {
     await browser.close();
