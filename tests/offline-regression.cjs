@@ -1075,7 +1075,7 @@ const path = require('node:path');
         from: { hash: payload }, to: { hash: '0x' + '2'.repeat(40) },
         value: '1', method: payload, decoded_input: { method_call: payload },
         token_transfers: [{
-          token: { name: payload, symbol: 'TEST', address_hash: '0x' + '3'.repeat(40) },
+          token: { name: payload, address_hash: '0x' + '3'.repeat(40) },
           from: { hash: '0x' + '4'.repeat(40) }, to: { hash: '0x' + '5'.repeat(40) },
           total: { value: '1', decimals: '0' }
         }]
@@ -1094,12 +1094,14 @@ const path = require('node:path');
           if (!result.hidden || !errorBox.hidden) break;
           await new Promise(resolve => setTimeout(resolve, 10));
         }
+        const tokenRow = appendTokenTransfer(transaction.token_transfers[0], address);
         const state = {
           resultVisible: !result.hidden,
           fromText: document.querySelector('#r-from').textContent,
           methodText: document.querySelector('#r-method').textContent,
-          tokenText: document.querySelector('#r-token-transfers').textContent,
-          injectedElements: document.querySelectorAll('#result img, #result script').length,
+          tokenText: tokenRow.textContent,
+          injectedElements: document.querySelectorAll('#result img, #result script').length +
+            tokenRow.querySelectorAll('img, script').length,
           executed: window.__untrustedApiExecuted
         };
         return { payload, state };
