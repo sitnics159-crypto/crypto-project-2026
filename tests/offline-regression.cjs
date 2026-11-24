@@ -391,6 +391,62 @@ const path = require('node:path');
       throw new Error('Address lookup API failure/recovery regression: ' + JSON.stringify(apiErrors));
     }
     console.log('Address lookup 404, incomplete payload, timeout, HTTP 429, and HTTP 5xx fixtures passed');
+    // A secondary activity endpoint failure must not hide a successfully resolved address or the other activity section.
+    const partialAddressRegression = await page.evaluate(async () => {
+      const originalFetch = window.fetch;
+      const originalSetTimeout = window.setTimeout;
+      const address = '0x' + 'b'.repeat(40);
+      const makeResponse = (status, body) => ({ ok: status >= 200 && status < 300, status, json: async () => body });
+      const submit = async () => {
+        addressInput.value = address;
+        addressForm.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+        for (let attempt = 0; attempt < 100; attempt++) {
+          await new Promise(resolve => originalSetTimeout(resolve, 5));
+          if (!addressResult.hidden && !addressButton.disabled && addressLoading.hidden) return;
+        }
+        throw new Error('Timed out waiting for partial address result');
+      };
+      const cases = [];
+      try {
+        for (const failedEndpoint of ['transactions', 'token-transfers']) {
+          window.fetch = async url => {
+            const target = String(url);
+            if (target.endsWith('/transactions') && failedEndpoint === 'transactions') return makeResponse(503, {});
+            if (target.includes('/token-transfers') && failedEndpoint === 'token-transfers') return makeResponse(429, {});
+            if (target.endsWith('/transactions')) return makeResponse(200, { items: [{ hash: address + '-tx' }], next_page_params: null });
+            if (target.includes('/token-transfers')) return makeResponse(200, { items: [{ transaction_hash: address + '-token', token_type: 'ERC-20' }], next_page_params: null });
+            return makeResponse(200, { hash: address, coin_balance: '0', is_contract: false });
+          };
+          await submit();
+          const result = {
+            failedEndpoint,
+            addressVisible: !addressResult.hidden,
+            address: document.querySelector('#a-hash').textContent.toLowerCase(),
+            txCount: addressTxItems.length,
+            txStatus: addressTxStatus.textContent,
+            tokenCount: tokenTransferItems.length,
+            tokenStatus: tokenListStatus.textContent,
+            buttonEnabled: !addressButton.disabled,
+            loadingHidden: addressLoading.hidden
+          };
+          if (!result.addressVisible || result.address !== address || !result.buttonEnabled || !result.loadingHidden) {
+            throw new Error('Address result was hidden after secondary endpoint failure: ' + JSON.stringify(result));
+          }
+          if (failedEndpoint === 'transactions' && (!result.txStatus.includes('Не удалось загрузить этот раздел') || result.tokenCount !== 1)) {
+            throw new Error('Transaction endpoint failure did not remain isolated: ' + JSON.stringify(result));
+          }
+          if (failedEndpoint === 'token-transfers' && (!result.tokenStatus.includes('Blockscout ограничил частоту') || result.txCount !== 1)) {
+            throw new Error('Token endpoint failure did not remain isolated: ' + JSON.stringify(result));
+          }
+          cases.push(result);
+        }
+        return cases;
+      } finally {
+        window.fetch = originalFetch;
+        window.setTimeout = originalSetTimeout;
+      }
+    });
+    console.log('Partial address activity availability regressions passed:', JSON.stringify(partialAddressRegression));
     // Exercise transaction rendering and request failures using local fixtures only.
     const transactionRegression = await page.evaluate(async fixture => {
       const originalFetch = window.fetch;
