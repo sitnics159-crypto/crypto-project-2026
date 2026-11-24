@@ -331,7 +331,48 @@ const path = require('node:path');
         const rateLimit = await run('rate-limit');
         const serverError = await run('server-error');
         const timeout = await run('timeout');
-        return { notFound, incomplete, rateLimit, serverError, timeout };
+        const failedState = {
+          message: addressError.textContent,
+          buttonEnabled: !addressButton.disabled,
+          loadingHidden: addressLoading.hidden,
+          resultHidden: addressResult.hidden
+        };
+        let recoveryRequests = 0;
+        window.fetch = async url => {
+          recoveryRequests++;
+          if (recoveryRequests <= 3) {
+            return new Response('{}', { status: 503, headers: { 'Content-Type': 'application/json' } });
+          }
+          const target = new URL(String(url));
+          if (target.pathname.endsWith('/transactions')) {
+            return new Response(JSON.stringify({ items: [], next_page_params: null }), {
+              status: 200, headers: { 'Content-Type': 'application/json' }
+            });
+          }
+          if (target.pathname.endsWith('/token-transfers')) {
+            return new Response(JSON.stringify({ items: [], next_page_params: null }), {
+              status: 200, headers: { 'Content-Type': 'application/json' }
+            });
+          }
+          return new Response(JSON.stringify({
+            hash: address, coin_balance: '0', is_contract: false,
+            is_scam: false, has_tokens: false, has_token_transfers: false
+          }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        };
+        submit();
+        for (let attempt = 0; attempt < 100; attempt++) {
+          await new Promise(resolve => originalSetTimeout(resolve, 5));
+          if (!addressResult.hidden || !addressError.hidden) break;
+        }
+        const recoveredState = {
+          resultVisible: !addressResult.hidden,
+          errorHidden: addressError.hidden,
+          displayedAddress: document.querySelector('#a-hash').textContent.toLowerCase(),
+          buttonEnabled: !addressButton.disabled,
+          loadingHidden: addressLoading.hidden,
+          requestCount: recoveryRequests
+        };
+        return { notFound, incomplete, rateLimit, serverError, timeout, failedState, recoveredState };
       } finally {
         window.fetch = originalFetch;
         window.setTimeout = originalSetTimeout;
