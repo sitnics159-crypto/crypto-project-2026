@@ -584,7 +584,9 @@ const path = require('node:path');
     }
 
     const readCsvDownload = async () => {
-      const download = await page.waitForEvent('download', () => page.locator('#token-export').click());
+      const downloadPromise = page.waitForEvent('download');
+      await page.locator('#token-export').click();
+      const download = await downloadPromise;
       const raw = fs.readFileSync(await download.path(), 'utf8').replace(/^\uFEFF/, '');
       const rows = [];
       let row = [], field = '', quoted = false;
