@@ -38,6 +38,11 @@ const path = require('node:path');
     console.log('Transaction, token-decimals, and CSV fixtures passed');
 
     const edgeCases = await page.evaluate(async (paginationFixture) => {
+      const ethTiny = weiToEth('1');
+      const ethZero = weiToEth('0');
+      const ethWhole = weiToEth('1000000000000000000');
+      const ethFraction = weiToEth('1234567890123456789');
+      const ethTrimmed = weiToEth('100000000000000000');
       const amountZeroDecimals = tokenAmount({ total: { value: '12345', decimals: '0' } });
       const amountTiny = tokenAmount({ total: { value: '1', decimals: '18' } });
       const tinyFee = formatFeeDisplay('1422359');
@@ -91,8 +96,13 @@ const path = require('node:path');
         window.fetch = originalFetch;
         tokenMetadataCache.delete(retryAddress.toLowerCase());
       }
-      return { amountZeroDecimals, amountTiny, tinyFee, normalFee, zeroFee, amountInvalidDecimals, amountMissingDecimals, amountMetadataFallback, eventAmountInvalidDecimalsFallback, contractTokenType, localPaginationVisible, formulaCell, newlineFormulaCell, fullwidthFormulaCell, incoming, outgoing, metadataRetry };
+      return { ethTiny, ethZero, ethWhole, ethFraction, ethTrimmed, amountZeroDecimals, amountTiny, tinyFee, normalFee, zeroFee, amountInvalidDecimals, amountMissingDecimals, amountMetadataFallback, eventAmountInvalidDecimalsFallback, contractTokenType, localPaginationVisible, formulaCell, newlineFormulaCell, fullwidthFormulaCell, incoming, outgoing, metadataRetry };
     }, paginationFixture);
+    if (edgeCases.ethTiny !== '0.000000000000000001 ETH') throw new Error('1 wei ETH display lost precision: ' + edgeCases.ethTiny);
+    if (edgeCases.ethZero !== '0 ETH') throw new Error('Zero ETH display changed: ' + edgeCases.ethZero);
+    if (edgeCases.ethWhole !== '1 ETH') throw new Error('Whole ETH display changed: ' + edgeCases.ethWhole);
+    if (edgeCases.ethFraction !== '1.234567890123456789 ETH') throw new Error('18-decimal ETH display lost precision: ' + edgeCases.ethFraction);
+    if (edgeCases.ethTrimmed !== '0.1 ETH') throw new Error('Trailing-zero trimming changed: ' + edgeCases.ethTrimmed);
     if (edgeCases.amountZeroDecimals !== '12345') throw new Error('Zero-decimals token amount failed: ' + edgeCases.amountZeroDecimals);
     if (edgeCases.amountTiny !== '0.000000000000000001') throw new Error('Tiny ERC-20 amount lost precision: ' + edgeCases.amountTiny);
     if (edgeCases.tinyFee !== '0.000000000001422359 ETH') throw new Error('Tiny positive transaction fee was rounded to zero: ' + edgeCases.tinyFee);
