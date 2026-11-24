@@ -1,0 +1,90 @@
+{
+  "hash": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "transactions": [
+    {
+      "name": "success",
+      "data": {
+        "hash": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "status": "ok",
+        "block_number": 123456,
+        "timestamp": "2026-11-20T12:34:56.000000Z",
+        "from": {
+          "hash": "0x1111111111111111111111111111111111111111"
+        },
+        "to": {
+          "hash": "0x2222222222222222222222222222222222222222"
+        },
+        "value": "1000000000000000000",
+        "fee": {
+          "value": "21000000000000"
+        },
+        "transaction_types": [
+          "coin_transfer"
+        ]
+      },
+      "expected": {
+        "status": "Выполнена",
+        "value": "1 ETH",
+        "fee": "0.000021 ETH",
+        "block": "№ 123456",
+        "from": "0x1111111111111111111111111111111111111111",
+        "to": "0x2222222222222222222222222222222222222222"
+      }
+    },
+    {
+      "name": "failed",
+      "data": {
+        "hash": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "status": "error",
+        "block_number": 123457,
+        "value": "0",
+        "transaction_types": []
+      },
+      "expected": {
+        "status": "Не выполнена",
+        "value": "0 ETH",
+        "block": "№ 123457",
+        "explanation": "Причину неуспешного выполнения"
+      }
+    },
+    {
+      "name": "pending",
+      "data": {
+        "hash": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "status": "pending",
+        "block_number": null,
+        "value": "250000000000000000",
+        "transaction_types": [
+          "coin_transfer"
+        ]
+      },
+      "expected": {
+        "status": "Ожидает подтверждения",
+        "value": "0.25 ETH",
+        "block": "Ещё не включена",
+        "explanation": "пока не включена в блок"
+      }
+    },
+    {
+      "name": "unknown",
+      "data": {
+        "hash": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "status": "unknown",
+        "block_number": 123458,
+        "value": null
+      },
+      "expected": {
+        "status": "В блоке · статус не определён",
+        "value": "Не указано в данных",
+        "fee": "Не удалось определить",
+        "time": "Не удалось определить"
+      }
+    }
+  ],
+  "errors": {
+    "notFound": "Транзакция с таким хешем не найдена",
+    "rateLimit": "Слишком много запросов",
+    "server": "Не удалось связаться с источником данных",
+    "incomplete": "Источник вернул неполные данные"
+  }
+}
