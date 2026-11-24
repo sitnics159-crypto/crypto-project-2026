@@ -32,7 +32,7 @@
 
 ## Current pull requests and issues
 
-- PR #29 — earlier checkpoint refresh — OPEN but stale and diverged from current `main`; this replacement checkpoint PR supersedes it. Do not merge #29.
+- PR #29 — earlier checkpoint refresh — CLOSED as stale and diverged from current `main`; superseded by replacement PR #37.
 - PR #33 — old security-policy branch — CLOSED; superseded by merged PR #36.
 - PR #36 — security policy — MERGED.
 - Issue #31 — stale address/pagination response race — CLOSED as completed by PR #32.
