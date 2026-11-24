@@ -1,6 +1,9 @@
 name: Generate CI dependency lockfile
 
 on:
+  pull_request:
+    branches:
+      - main
   push:
     branches:
       - chore/lock-ci-test-dependencies-2026-11-24
