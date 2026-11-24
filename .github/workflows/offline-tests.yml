@@ -28,7 +28,7 @@ jobs:
           node-version: 22
       - name: Install pinned Playwright
         run: |
-          npm install --no-save --no-package-lock playwright@1.65.1
+          npm install --no-save --no-package-lock playwright@1.65.1 axe-core@4.10.3
           npx playwright install --with-deps chromium
       - name: Start local preview server
         run: |
@@ -40,4 +40,6 @@ jobs:
           cat /tmp/preview-server.log
           exit 1
       - name: Run deterministic tests without external network
-        run: node tests/offline-regression.cjs
+        run: |
+          node tests/offline-regression.cjs
+          node tests/accessibility-regression.cjs
