@@ -31,7 +31,7 @@ const path = require('node:path');
         fixtureResult.status !== fixture.expected.status ||
         fixtureResult.amount !== fixture.expected.amount ||
         fixtureResult.exactAmount !== fixture.expected.exactAmount ||
-        !fixtureResult.csv.startsWith("\\\"'=")) {
+        !fixtureResult.csv.startsWith("\"'=")) {
       throw new Error('Application fixture regression failed: ' + JSON.stringify(fixtureResult));
     }
     console.log('Transaction, token-decimals, and CSV fixtures passed');
