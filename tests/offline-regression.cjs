@@ -339,9 +339,9 @@ const path = require('node:path');
           }
         }
 
-        window.fetch = async () => new Promise((resolve, reject) => {
+        window.fetch = async (url, options = {}) => new Promise((resolve, reject) => {
           // AbortSignal is intentionally honored to test the visible timeout path.
-          const signal = arguments.length > 1 ? arguments[1]?.signal : null;
+          const signal = options.signal;
           signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true });
         });
         window.setTimeout = (callback, delay, ...args) =>
