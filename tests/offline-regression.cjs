@@ -21,6 +21,34 @@ const path = require('node:path');
     await page.goto('http://127.0.0.1:4173/', { waitUntil: 'domcontentloaded' });
     if (!(await page.title()).includes('Sepolia')) throw new Error('Unexpected page title');
 
+    // Mobile input sizing must avoid iOS focus zoom; keyboard focus must remain visible.
+    await page.setViewportSize({ width: 390, height: 844 });
+    const mobileAccessibility = await page.evaluate(() => ({
+      transactionInputSize: getComputedStyle(document.querySelector('#tx-hash')).fontSize,
+      addressInputSize: getComputedStyle(document.querySelector('#address-input')).fontSize,
+      focusRule: [...document.styleSheets].some(sheet => {
+        try { return [...sheet.cssRules].some(rule => rule.cssText.includes(':focus-visible') && rule.cssText.includes('outline: 3px solid')); }
+        catch { return false; }
+      })
+    }));
+    if (mobileAccessibility.transactionInputSize !== '16px' ||
+        mobileAccessibility.addressInputSize !== '16px' ||
+        !mobileAccessibility.focusRule) {
+      throw new Error('Mobile input/focus accessibility regression: ' + JSON.stringify(mobileAccessibility));
+    }
+    await page.keyboard.press('Tab');
+    const keyboardFocus = await page.evaluate(() => ({
+      id: document.activeElement?.id || '',
+      outlineStyle: getComputedStyle(document.activeElement).outlineStyle,
+      outlineWidth: getComputedStyle(document.activeElement).outlineWidth
+    }));
+    if (keyboardFocus.id !== 'tx-hash' ||
+        keyboardFocus.outlineStyle === 'none' ||
+        keyboardFocus.outlineWidth === '0px') {
+      throw new Error('Visible keyboard focus regression: ' + JSON.stringify(keyboardFocus));
+    }
+    console.log('Mobile input sizing and keyboard focus passed:', JSON.stringify({ mobileAccessibility, keyboardFocus }));
+
     const fixtureResult = await page.evaluate(f => ({
       type: transactionTypeLabel(f.transaction),
       status: statusOf(f.transaction).key,
