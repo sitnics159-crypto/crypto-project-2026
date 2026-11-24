@@ -1064,6 +1064,60 @@ const path = require('node:path');
     });
     console.log('Address transaction and token-transfer pagination error/retry matrix passed:', JSON.stringify(paginationRegression));
 
+    // Untrusted Blockscout strings must remain inert text, never become executable markup.
+    const untrustedApiRendering = await page.evaluate(async () => {
+      const originalFetch = window.fetch;
+      const hash = '0x' + '8'.repeat(64);
+      const address = '0x' + '9'.repeat(40);
+      const payload = '<img src=x onerror="window.__untrustedApiExecuted=1"><script>window.__untrustedApiExecuted=2</script>';
+      const transaction = {
+        hash, status: 'ok', block_number: 123,
+        from: { hash: payload }, to: { hash: '0x' + '2'.repeat(40) },
+        value: '1', method: payload, decoded_input: { method_call: payload },
+        token_transfers: [{
+          token: { name: payload, symbol: 'TEST', address_hash: '0x' + '3'.repeat(40) },
+          from: { hash: '0x' + '4'.repeat(40) }, to: { hash: '0x' + '5'.repeat(40) },
+          total: { value: '1', decimals: '0' }
+        }]
+      };
+      window.__untrustedApiExecuted = 0;
+      window.fetch = async url => {
+        if (String(url).includes('/api/v2/transactions/' + hash)) {
+          return new Response(JSON.stringify(transaction), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        }
+        return originalFetch(url);
+      };
+      try {
+        input.value = hash;
+        form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+        for (let attempt = 0; attempt < 200; attempt++) {
+          if (!result.hidden || !errorBox.hidden === false) break;
+          await new Promise(resolve => setTimeout(resolve, 10));
+        }
+        const state = {
+          resultVisible: !result.hidden,
+          fromText: document.querySelector('#r-from').textContent,
+          methodText: document.querySelector('#r-method').textContent,
+          tokenText: document.querySelector('#r-token-transfers').textContent,
+          injectedElements: document.querySelectorAll('#result img, #result script').length,
+          executed: window.__untrustedApiExecuted
+        };
+        return { payload, state };
+      } finally {
+        window.fetch = originalFetch;
+        delete window.__untrustedApiExecuted;
+      }
+    });
+    if (!untrustedApiRendering.state.resultVisible ||
+        untrustedApiRendering.state.fromText !== untrustedApiRendering.payload ||
+        untrustedApiRendering.state.methodText !== untrustedApiRendering.payload ||
+        !untrustedApiRendering.state.tokenText.includes(untrustedApiRendering.payload) ||
+        untrustedApiRendering.state.injectedElements !== 0 ||
+        untrustedApiRendering.state.executed !== 0) {
+      throw new Error('Untrusted API text-rendering/XSS regression failed: ' + JSON.stringify(untrustedApiRendering));
+    }
+    console.log('Untrusted Blockscout transaction, method, and token strings remain inert text (no injected elements or execution)');
+
     console.log('All deterministic offline application tests passed');
   } finally {
     await browser.close();
