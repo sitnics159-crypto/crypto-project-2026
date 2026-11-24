@@ -1091,7 +1091,7 @@ const path = require('node:path');
         input.value = hash;
         form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
         for (let attempt = 0; attempt < 200; attempt++) {
-          if (!result.hidden || !errorBox.hidden === false) break;
+          if (!result.hidden || !errorBox.hidden) break;
           await new Promise(resolve => setTimeout(resolve, 10));
         }
         const state = {
