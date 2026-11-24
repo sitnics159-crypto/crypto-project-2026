@@ -28,7 +28,7 @@ jobs:
           node-version: 22
       - name: Install pinned Playwright
         run: |
-          npm install --no-save --no-package-lock playwright@1.65.1 axe-core@4.10.3
+          npm ci --ignore-scripts
           npx playwright install --with-deps chromium
       - name: Start local preview server
         run: |
