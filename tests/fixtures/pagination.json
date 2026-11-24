@@ -2,7 +2,7 @@
   "address": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
   "filterItems": [
     {
-      "transaction_hash": "0xself",
+      "transaction_hash": "0x1",
       "from": {
         "hash": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
       },
@@ -15,7 +15,7 @@
       }
     },
     {
-      "transaction_hash": "0xin",
+      "transaction_hash": "0x2",
       "from": {
         "hash": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
       },
@@ -28,7 +28,7 @@
       }
     },
     {
-      "transaction_hash": "0xout",
+      "transaction_hash": "0x3",
       "from": {
         "hash": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
       },
