@@ -197,12 +197,34 @@ jobs:
               }
               console.log('Live transaction form lookup passed:', JSON.stringify(transactionLookup));
               for (const filter of ['incoming', 'outgoing', 'all']) {
+                const previousResponseCount = apiResponses.length;
                 await page.locator('[data-token-filter="' + filter + '"]').click();
-                await page.waitForTimeout(150);
+                await page.waitForFunction(() => !tokenTransferLoading, { timeout: 20000 });
+                const filteredState = await page.evaluate(() => ({
+                  filter: tokenTransferFilter,
+                  address: tokenTransferAddress.toLowerCase(),
+                  items: tokenTransferItems.map(item => ({
+                    from: (item.from?.hash || '').toLowerCase(),
+                    to: (item.to?.hash || '').toLowerCase()
+                  })),
+                  error: tokenTransferLoadError
+                }));
+                if (filteredState.error) throw new Error(filter + ' token filter failed: ' + filteredState.error);
+                if (filter === 'incoming' || filter === 'outgoing') {
+                  const expectedApiFilter = filter === 'incoming' ? 'to' : 'from';
+                  const matchingResponse = apiResponses.slice(previousResponseCount).find(item =>
+                    new URL(item.url).searchParams.get('filter') === expectedApiFilter);
+                  if (!matchingResponse || matchingResponse.status !== 200) {
+                    throw new Error(filter + ' filter did not complete Blockscout filter=' + expectedApiFilter + ' request');
+                  }
+                  const wrongDirection = filteredState.items.some(item => filter === 'incoming'
+                    ? item.to !== filteredState.address || item.from === filteredState.address
+                    : item.from !== filteredState.address || item.to === filteredState.address);
+                  if (wrongDirection) throw new Error(filter + ' API returned a transfer in the wrong direction');
+                }
                 console.log(filter, 'visible rows:', await page.locator('#address-token-transfers .token-transfer').count());
               }
 
-              await page.locator('[data-token-filter="all"]').click();
               if (await page.locator('#token-load-more').isVisible()) {
                 const beforeRows = await page.locator('#address-token-transfers .token-transfer').count();
                 await page.locator('#token-load-more').click();
