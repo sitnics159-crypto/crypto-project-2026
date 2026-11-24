@@ -248,7 +248,11 @@ const path = require('node:path');
           if (mode === 'timeout') return new Promise((resolve, reject) => {
             options.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true });
           });
-          const status = mode === 'rate-limit' ? apiErrorFixture.rateLimit.status : apiErrorFixture.serverError.status;
+          if (mode === 'incomplete') {
+            return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
+          }
+          const status = mode === 'rate-limit' ? apiErrorFixture.rateLimit.status :
+            mode === 'not-found' ? 404 : apiErrorFixture.serverError.status;
           return Promise.resolve({ ok: false, status, json: async () => ({}) });
         };
         if (mode === 'timeout') {
@@ -263,21 +267,25 @@ const path = require('node:path');
         throw new Error('Timed out waiting for ' + mode + ' error state');
       };
       try {
+        const notFound = await run('not-found');
+        const incomplete = await run('incomplete');
         const rateLimit = await run('rate-limit');
         const serverError = await run('server-error');
         const timeout = await run('timeout');
-        return { rateLimit, serverError, timeout };
+        return { notFound, incomplete, rateLimit, serverError, timeout };
       } finally {
         window.fetch = originalFetch;
         window.setTimeout = originalSetTimeout;
       }
     }, apiErrorFixture);
-    if (!apiErrors.rateLimit.includes(apiErrorFixture.rateLimit.expected) ||
+    if (!apiErrors.notFound.includes('Адрес не найден в Sepolia') ||
+        !apiErrors.incomplete.includes('Источник вернул неполные данные') ||
+        !apiErrors.rateLimit.includes(apiErrorFixture.rateLimit.expected) ||
         !apiErrors.serverError.includes(apiErrorFixture.serverError.expected) ||
         !apiErrors.timeout.includes(apiErrorFixture.timeout.expected)) {
-      throw new Error('API failure handling regression: ' + JSON.stringify(apiErrors));
+      throw new Error('Address lookup API failure handling regression: ' + JSON.stringify(apiErrors));
     }
-    console.log('Timeout, HTTP 429, and HTTP 5xx fixtures passed');
+    console.log('Address lookup 404, incomplete payload, timeout, HTTP 429, and HTTP 5xx fixtures passed');
     // Exercise transaction rendering and request failures using local fixtures only.
     const transactionRegression = await page.evaluate(async fixture => {
       const originalFetch = window.fetch;
