@@ -9,7 +9,7 @@ const path = require('node:path');
   const apiErrorFixture = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'api-errors.json'), 'utf8'));
   const transactionFixture = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'transaction-states.json'), 'utf8'));
   const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage();
+  const page = await browser.newPage({ acceptDownloads: true });
   page.on('pageerror', error => { throw error; });
   // The offline suite must never depend on Blockscout, Kraken, or any other external host.
   await page.route('**/*', route => {
@@ -520,8 +520,26 @@ const path = require('node:path');
             target.startsWith(base + '/token-transfers?')) {
           window.__shareableAddressFetches.push(target);
           const payload = target === base
-            ? { hash: address, coin_balance: '1000000000000000000', is_contract: false, is_scam: false, has_tokens: false, has_token_transfers: false }
-            : { items: [], next_page_params: null };
+            ? { hash: address, coin_balance: '1000000000000000000', is_contract: false, is_scam: false, has_tokens: true, has_token_transfers: true }
+            : target === base + '/token-transfers?type=ERC-20'
+              ? {
+                  items: [
+                    {
+                      transaction_hash: '0x' + '1'.repeat(64), log_index: 0, token_type: 'ERC-20',
+                      from: { hash: '0x' + 'a'.repeat(40) }, to: { hash: address },
+                      token: { name: 'USD, "Coin"', symbol: 'USDC', address_hash: '0x' + 'c'.repeat(40) },
+                      total: { value: '16825800', decimals: '6' }, block_number: 100, timestamp: '2026-11-24T09:00:00.000Z'
+                    },
+                    {
+                      transaction_hash: '0x' + '2'.repeat(64), log_index: 1, token_type: 'ERC-20',
+                      from: { hash: address }, to: { hash: '0x' + 'd'.repeat(40) },
+                      token: { name: '=HYPERLINK("https://example.com")', symbol: 'WETH', address_hash: '0x' + 'e'.repeat(40) },
+                      total: { value: '7000000000000000', decimals: '18' }, block_number: 101, timestamp: '2026-11-24T09:01:00.000Z'
+                    }
+                  ],
+                  next_page_params: null
+                }
+              : { items: [], next_page_params: null };
           return Promise.resolve(new Response(JSON.stringify(payload), {
             status: 200,
             headers: { 'Content-Type': 'application/json' }
@@ -552,6 +570,69 @@ const path = require('node:path');
       throw new Error('Shareable address URL regression failed: ' + JSON.stringify(shareableAddressLookup));
     }
     console.log('Shareable address URL restoration passed:', JSON.stringify(shareableAddressLookup));
+    const csvState = await page.evaluate(() => ({
+      itemCount: tokenTransferItems.length,
+      address: tokenTransferAddress,
+      filter: tokenTransferFilter,
+      exportDisabled: tokenExport.disabled,
+      listStatus: tokenListStatus.textContent,
+      items: tokenTransferItems.map(item => ({ hash: item.transaction_hash, from: item.from?.hash, to: item.to?.hash }))
+    }));
+    console.log('CSV export fixture state:', JSON.stringify(csvState));
+    if (csvState.itemCount !== 2 || csvState.exportDisabled) {
+      throw new Error('CSV export fixture did not enable the export button: ' + JSON.stringify(csvState));
+    }
+
+    const readCsvDownload = async () => {
+      const downloadPromise = page.waitForEvent('download');
+      await page.locator('#token-export').click();
+      const download = await downloadPromise;
+      const raw = fs.readFileSync(await download.path(), 'utf8').replace(/^\uFEFF/, '');
+      const rows = [];
+      let row = [], field = '', quoted = false;
+      for (let i = 0; i < raw.length; i++) {
+        const char = raw[i];
+        if (quoted && char === '"' && raw[i + 1] === '"') { field += '"'; i++; }
+        else if (char === '"') quoted = !quoted;
+        else if (!quoted && char === ',') { row.push(field); field = ''; }
+        else if (!quoted && char === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
+        else if (char !== '\r') field += char;
+      }
+      if (field.length || row.length) { row.push(field); rows.push(row); }
+      return { filename: download.suggestedFilename(), rows, raw };
+    };
+    const allCsv = await readCsvDownload();
+    const expectedHeaders = [
+      'transaction_hash', 'log_index', 'token_type', 'from_address', 'to_address',
+      'token_name', 'token_symbol', 'token_address', 'amount', 'amount_raw',
+      'decimals', 'block_number', 'timestamp'
+    ];
+    if (allCsv.rows.length !== 3 || allCsv.rows.some(row => row.length !== 13) ||
+        JSON.stringify(allCsv.rows[0]) !== JSON.stringify(expectedHeaders) ||
+        !allCsv.filename.endsWith('-all.csv') ||
+        allCsv.rows[1][0] !== '0x' + '1'.repeat(64) ||
+        allCsv.rows[1][8] !== '16.8258' || allCsv.rows[1][9] !== '16825800' ||
+        allCsv.rows[1][10] !== '6' || allCsv.rows[1][5] !== 'USD, "Coin"' ||
+        allCsv.rows[2][0] !== '0x' + '2'.repeat(64) ||
+        allCsv.rows[2][8] !== '0.007' || allCsv.rows[2][9] !== '7000000000000000' ||
+        allCsv.rows[2][10] !== '18' ||
+        allCsv.rows[2][5] !== "'=HYPERLINK(\"https://example.com\")" ||
+        !allCsv.raw.includes('"\'=HYPERLINK(""https://example.com"")"')) {
+      throw new Error('CSV all-transfers export regression failed: ' + JSON.stringify(allCsv));
+    }
+
+    await page.locator('[data-token-filter="incoming"]').click();
+    const incomingCsv = await readCsvDownload();
+    if (incomingCsv.rows.length !== 2 || incomingCsv.rows[1][0] !== '0x' + '1'.repeat(64) ||
+        incomingCsv.filename.endsWith('-all.csv')) {
+      throw new Error('CSV incoming-filter export regression failed: ' + JSON.stringify(incomingCsv));
+    }
+    await page.locator('[data-token-filter="outgoing"]').click();
+    const outgoingCsv = await readCsvDownload();
+    if (outgoingCsv.rows.length !== 2 || outgoingCsv.rows[1][0] !== '0x' + '2'.repeat(64)) {
+      throw new Error('CSV outgoing-filter export regression failed: ' + JSON.stringify(outgoingCsv));
+    }
+    console.log('CSV download, 13-column schema, exact amounts, escaping, and all/incoming/outgoing filters passed');
 
     console.log('All deterministic offline application tests passed');
   } finally {
