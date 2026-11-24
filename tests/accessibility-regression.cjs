@@ -78,15 +78,57 @@ const axe = require('axe-core');
       });
 
       viewportResults.push({ viewport, layout, audit });
-      const critical = audit.violations.filter(item => item.impact === 'critical');
-      if (critical.length) {
-        throw new Error('Critical WCAG violations at ' + viewport.width + 'px: ' + JSON.stringify(critical));
+      if (audit.violations.length) {
+        throw new Error('WCAG violations at ' + viewport.width + 'px: ' + JSON.stringify(audit.violations));
       }
+    }
+
+    // Audit the client-side validation states as well as the empty initial page.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.locator('#tx-hash').fill('not-a-transaction-hash');
+    await page.locator('#submit').click();
+    await page.locator('#error').waitFor({ state: 'visible' });
+    const transactionErrorAudit = await page.evaluate(async () => {
+      const results = await axe.run(document, {
+        runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'] }
+      });
+      return {
+        violations: results.violations.map(item => ({
+          id: item.id, impact: item.impact, help: item.help,
+          nodes: item.nodes.map(node => ({ target: node.target, summary: node.failureSummary }))
+        })),
+        passes: results.passes.length,
+        incomplete: results.incomplete.length
+      };
+    });
+    if (transactionErrorAudit.violations.length) {
+      throw new Error('WCAG violations in transaction validation-error state: ' + JSON.stringify(transactionErrorAudit.violations));
+    }
+
+    await page.locator('#address-input').fill('not-an-address');
+    await page.locator('#address-submit').click();
+    await page.locator('#address-error').waitFor({ state: 'visible' });
+    const addressErrorAudit = await page.evaluate(async () => {
+      const results = await axe.run(document, {
+        runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'] }
+      });
+      return {
+        violations: results.violations.map(item => ({
+          id: item.id, impact: item.impact, help: item.help,
+          nodes: item.nodes.map(node => ({ target: node.target, summary: node.failureSummary }))
+        })),
+        passes: results.passes.length,
+        incomplete: results.incomplete.length
+      };
+    });
+    if (addressErrorAudit.violations.length) {
+      throw new Error('WCAG violations in address validation-error state: ' + JSON.stringify(addressErrorAudit.violations));
     }
 
     if (pageErrors.length) throw new Error('Browser runtime errors: ' + JSON.stringify(pageErrors));
     console.log('Responsive viewport and WCAG 2.2 AA baseline:', JSON.stringify(viewportResults));
-    console.log('PASS: no horizontal overflow, both primary inputs visible, and no critical automated WCAG violations.');
+    console.log('Validation-error accessibility audits:', JSON.stringify({ transactionErrorAudit, addressErrorAudit }));
+    console.log('PASS: no horizontal overflow, both primary inputs visible, and no automated WCAG violations in initial or validation-error states.');
   } finally {
     await browser.close();
   }
