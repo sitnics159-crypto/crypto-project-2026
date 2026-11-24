@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
   pages: write
   id-token: write
 
@@ -33,6 +34,31 @@ jobs:
         with:
           name: github-pages-${{ github.run_id }}-${{ github.run_attempt }}
           path: '.'
+      - name: Wait for Pages artifact metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_ARTIFACT: github-pages-${{ github.run_id }}-${{ github.run_attempt }}
+        shell: bash
+        run: |
+          for attempt in {1..30}; do
+            if response="$(curl --fail --silent --show-error --max-time 15 \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts?per_page=100" 2>/dev/null)"; then
+              if jq -e --arg expected "${EXPECTED_ARTIFACT}" \
+                '.artifacts | any(.[]; .name == $expected and .expired == false)' \
+                <<< "${response}" >/dev/null; then
+                echo "Pages artifact metadata is available: ${EXPECTED_ARTIFACT}"
+                exit 0
+              fi
+            fi
+
+            echo "Waiting for Pages artifact metadata (${attempt}/30)..."
+            sleep 5
+          done
+
+          echo "::error::Pages artifact ${EXPECTED_ARTIFACT} was not visible through the Actions API after 150 seconds."
+          exit 1
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
