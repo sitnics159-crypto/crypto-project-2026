@@ -562,7 +562,7 @@ const path = require('node:path');
         if (target === base || target === base + '/transactions' ||
             target.startsWith(base + '/token-transfers?')) {
           window.__shareableAddressFetches.push(target);
-          const payload = target === base
+          let payload = target === base
             ? { hash: address, coin_balance: '1000000000000000000', is_contract: false, is_scam: false, has_tokens: true, has_token_transfers: true }
             : target === base + '/token-transfers?type=ERC-20'
               ? {
@@ -583,6 +583,23 @@ const path = require('node:path');
                   next_page_params: null
                 }
               : { items: [], next_page_params: null };
+          const directionFilter = new URL(target).searchParams.get('filter');
+          if (directionFilter === 'to') payload = {
+            items: [{
+              transaction_hash: '0x' + '1'.repeat(64), log_index: 0, token_type: 'ERC-20',
+              from: { hash: '0x' + 'a'.repeat(40) }, to: { hash: address },
+              token: { name: 'USD, "Coin"', symbol: 'USDC', address_hash: '0x' + 'c'.repeat(40) },
+              total: { value: '16825800', decimals: '6' }, block_number: 100, timestamp: '2026-11-24T09:00:00.000Z'
+            }], next_page_params: null
+          };
+          if (directionFilter === 'from') payload = {
+            items: [{
+              transaction_hash: '0x' + '2'.repeat(64), log_index: 1, token_type: 'ERC-20',
+              from: { hash: address }, to: { hash: '0x' + 'd'.repeat(40) },
+              token: { name: '=HYPERLINK("https://example.com")', symbol: 'WETH', address_hash: '0x' + 'e'.repeat(40) },
+              total: { value: '7000000000000000', decimals: '18' }, block_number: 101, timestamp: '2026-11-24T09:01:00.000Z'
+            }], next_page_params: null
+          };
           return Promise.resolve(new Response(JSON.stringify(payload), {
             status: 200,
             headers: { 'Content-Type': 'application/json' }
@@ -665,12 +682,20 @@ const path = require('node:path');
     }
 
     await page.locator('[data-token-filter="incoming"]').click();
+    await page.waitForFunction(() => !tokenTransferLoading && tokenTransferFilter === 'incoming' && tokenTransferItems.length === 1);
+    if (!(await page.evaluate(() => window.__shareableAddressFetches.some(url => new URL(url).searchParams.get('filter') === 'to')))) {
+      throw new Error('Incoming CSV filter did not issue Blockscout filter=to request');
+    }
     const incomingCsv = await readCsvDownload();
     if (incomingCsv.rows.length !== 2 || incomingCsv.rows[1][0] !== '0x' + '1'.repeat(64) ||
         incomingCsv.filename.endsWith('-all.csv')) {
       throw new Error('CSV incoming-filter export regression failed: ' + JSON.stringify(incomingCsv));
     }
     await page.locator('[data-token-filter="outgoing"]').click();
+    await page.waitForFunction(() => !tokenTransferLoading && tokenTransferFilter === 'outgoing' && tokenTransferItems.length === 1);
+    if (!(await page.evaluate(() => window.__shareableAddressFetches.some(url => new URL(url).searchParams.get('filter') === 'from')))) {
+      throw new Error('Outgoing CSV filter did not issue Blockscout filter=from request');
+    }
     const outgoingCsv = await readCsvDownload();
     if (outgoingCsv.rows.length !== 2 || outgoingCsv.rows[1][0] !== '0x' + '2'.repeat(64)) {
       throw new Error('CSV outgoing-filter export regression failed: ' + JSON.stringify(outgoingCsv));
