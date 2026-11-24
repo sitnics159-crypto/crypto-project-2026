@@ -1,6 +1,6 @@
 # Development Checkpoint
 
-> Verified 2026-11-24 (Moldova local time). GitHub is authoritative; refresh PRs, branches, checks, and repository settings before relying on this snapshot.
+> Historical checkpoint originally verified 2026-11-24. The authoritative post-PR #62 state is recorded in the final section below; it supersedes conflicting earlier snapshot details.
 
 ## Repository
 
@@ -86,3 +86,53 @@ The repository ruleset was independently read from GitHub on 2026-11-24:
 ## Next action
 
 Implement Issue #35 as a focused test-infrastructure change, preserving the static MVP and no-wallet/no-secret boundaries.
+
+
+---
+
+## Authoritative state refresh — 2026-11-24, after PR #62
+
+This section supersedes earlier snapshot statements in this document wherever they conflict. GitHub live state was refreshed after PR #62 merged.
+
+### Current repository state
+
+- Current `main` SHA: `66515185728186c80ad4227faf02066967a0ebf2`.
+- Latest main commit: `Test inert rendering of untrusted Blockscout data (#62)`.
+- Published site: https://sitnics159-crypto.github.io/crypto-project-2026/
+- Only open pull request found: PR #60, `Refresh development checkpoint after PR #59`. It is based on an older main SHA (`0673cef328cc378c8189a7a8cc6d1306ea8dc5aa`) and its content is now stale after PRs #61 and #62. Leave it open and unmodified until its disposition is explicitly decided; this refreshed checkpoint is prepared from current main.
+- PR #61, `Report details for incomplete axe accessibility checks`, is MERGED (merge commit `2a44e1658a43b89c9c3544b61db923e6766568f4`).
+- PR #62, `Test inert rendering of untrusted Blockscout data`, is MERGED (merge commit `66515185728186c80ad4227faf02066967a0ebf2`).
+- Issue #35, `Separate deterministic application tests from live API smoke tests`, is CLOSED as completed. The separation and its regression coverage are already present on main; do not reopen or repeat this work.
+
+### Main CI and deployment verification
+
+All four push checks completed successfully on the exact current main SHA `66515185728186c80ad4227faf02066967a0ebf2`:
+
+- Validate static site — SUCCESS: https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45417808385
+- Deterministic offline tests — SUCCESS: https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45417808414
+- Live API integration smoke test — SUCCESS: https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45417808594
+- GitHub Pages deployment — SUCCESS: https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45417808675
+
+These results confirm the corresponding CI jobs and deployment action succeeded. They do not constitute a separate manual visual review of the published site or a full security/penetration test.
+
+### Accessibility and untrusted API data
+
+- PR #61 added detailed diagnostics for axe incomplete results and expanded accessibility checks for transaction/address error states and loading/result/pagination states. Automated checks reported zero confirmed axe violations in the audited states.
+- One axe `color-contrast` item remains `incomplete` because the page uses gradient backgrounds; this is not a confirmed violation. Targeted manual contrast calculations for reported header/intro text passed the 4.5:1 threshold, but this is not a complete manual accessibility audit.
+- PR #62 added a deterministic offline regression for HTML/script-like strings in untrusted Blockscout sender, decoded-method, and token-name fields. The test verifies values render as literal text and injected elements/handlers do not execute. This is targeted regression coverage, not proof of complete XSS immunity.
+
+### Next release-readiness work
+
+1. Perform a manual visual review of the deployed site at desktop and mobile widths, including transaction lookup, address lookup, ERC-20 filters/pagination/CSV, and market panels.
+2. Review API failure and recovery states against Blockscout and Kraken behavior, including timeout, rate limiting, server errors, and partial market-data failure.
+3. Complete a focused security review of external links, DOM sinks, API-derived content, dependency/workflow permissions, and hosting headers. Do not describe this as a penetration test unless one is actually performed.
+4. Keep the MVP static and read-only: no wallet connection, private keys, seed phrases, signing, or transaction submission.
+5. Select a project license only after the owner chooses one; do not add a license by assumption.
+
+### Session record
+
+- Date: 2026-11-24.
+- Base main SHA: `66515185728186c80ad4227faf02066967a0ebf2`.
+- Documentation-only branch: `docs/checkpoint-post-pr62-2026-11-24`.
+- Scope: refresh this checkpoint from verified GitHub state; no application code, workflows, or deployment settings changed.
+- Next action: continue the MVP 1.0 release-readiness audit, beginning with manual review of the deployed experience and its failure/recovery states.
