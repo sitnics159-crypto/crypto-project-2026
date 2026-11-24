@@ -573,7 +573,7 @@ const path = require('node:path');
 
     const readCsvDownload = async () => {
       const download = await page.waitForEvent('download', () => page.locator('#token-export').click());
-      const raw = fs.readFileSync(await download.path(), 'utf8').replace(/^\\uFEFF/, '');
+      const raw = fs.readFileSync(await download.path(), 'utf8').replace(/^\uFEFF/, '');
       const rows = [];
       let row = [], field = '', quoted = false;
       for (let i = 0; i < raw.length; i++) {
@@ -581,7 +581,7 @@ const path = require('node:path');
         if (quoted && char === '"' && raw[i + 1] === '"') { field += '"'; i++; }
         else if (char === '"') quoted = !quoted;
         else if (!quoted && char === ',') { row.push(field); field = ''; }
-        else if (!quoted && char === '\\n') { row.push(field); rows.push(row); row = []; field = ''; }
+        else if (!quoted && char === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
         else if (char !== '\\r') field += char;
       }
       if (field.length || row.length) { row.push(field); rows.push(row); }
