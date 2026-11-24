@@ -201,6 +201,36 @@ function renderTokenTransferList(){
  tokenListStatus.textContent=tokenTransferLoadError||('Показано '+visible.length+' из '+filtered.length+' загруженных переводов'+(tokenTransferNext?' · есть следующая страница':''));
  tokenLoadMore.hidden=tokenTransferVisible>=filtered.length&&!tokenTransferNext;tokenLoadMore.disabled=tokenTransferLoading;tokenExport.disabled=filtered.length===0
 }
+async function loadTokenTransfersForFilter(filter){
+ if(tokenTransferLoading)return;
+ const requestAddress=tokenTransferAddress,requestId=++tokenTransferGeneration;
+ if(tokenTransferController)tokenTransferController.abort();
+ const controller=new AbortController();tokenTransferController=controller;
+ tokenTransferItems=[];tokenTransferNext=null;tokenTransferVisible=5;tokenTransferLoadError='';
+ tokenTransferLoading=true;tokenListStatus.textContent='Загружаем переводы…';tokenList.replaceChildren();
+ tokenLoadMore.hidden=true;tokenLoadMore.disabled=true;
+ const params=new URLSearchParams({type:'ERC-20'});
+ if(filter==='incoming')params.set('filter','to');
+ else if(filter==='outgoing')params.set('filter','from');
+ const timeout=setTimeout(()=>controller.abort(),15000);
+ try{
+  const response=await fetch(ADDRESS_API+encodeURIComponent(requestAddress)+'/token-transfers?'+params.toString(),{headers:{Accept:'application/json'},signal:controller.signal});
+  if(response.status===429)throw Error('rate-limit');if(!response.ok)throw Error('service');
+  const data=await response.json();if(!Array.isArray(data.items))throw Error('incomplete');
+  if(requestId!==tokenTransferGeneration||requestAddress!==tokenTransferAddress)return;
+  tokenTransferItems=data.items.filter(item=>item&&typeof item.transaction_hash==='string');
+  tokenTransferNext=data.next_page_params||null;
+ }catch(err){
+  if(requestId!==tokenTransferGeneration||requestAddress!==tokenTransferAddress)return;
+  tokenTransferLoadError=err.name==='AbortError'?'Запрос выполняется слишком долго. Повторите выбор фильтра.':err.message==='rate-limit'?'Blockscout ограничил частоту запросов. Попробуйте ещё раз чуть позже.':'Не удалось загрузить переводы для выбранного фильтра. Повторите запрос.';
+ }finally{
+  clearTimeout(timeout);
+  if(requestId===tokenTransferGeneration&&requestAddress===tokenTransferAddress){
+   tokenTransferLoading=false;if(tokenTransferController===controller)tokenTransferController=null;
+   tokenLoadMore.disabled=false;renderTokenTransferList()
+  }
+ }
+}
 async function loadMoreTokenTransfers(){
  if(tokenTransferLoading)return;
  if(filteredTokenTransfers().length>tokenTransferVisible){
@@ -211,7 +241,7 @@ async function loadMoreTokenTransfers(){
  const requestAddress=tokenTransferAddress,requestId=++tokenTransferGeneration,nextPage={...tokenTransferNext};
  const controller=new AbortController();if(tokenTransferController)tokenTransferController.abort();tokenTransferController=controller;
  tokenTransferLoading=true;tokenTransferLoadError='';tokenLoadMore.disabled=true;tokenLoadMore.textContent='Загружаем…';
- const params=new URLSearchParams();for(const [key,value] of Object.entries(nextPage))if(value!==null&&value!==undefined)params.set(key,String(value));params.set('type','ERC-20');
+ const params=new URLSearchParams();for(const [key,value] of Object.entries(nextPage))if(value!==null&&value!==undefined)params.set(key,String(value));params.set('type','ERC-20');if(tokenTransferFilter!=='all')params.set('filter',tokenTransferFilter==='incoming'?'to':'from');
  const timeout=setTimeout(()=>controller.abort(),15000);
  try{
   const response=await fetch(ADDRESS_API+encodeURIComponent(requestAddress)+'/token-transfers?'+params.toString(),{headers:{Accept:'application/json'},signal:controller.signal});
@@ -232,7 +262,7 @@ async function loadMoreTokenTransfers(){
   }
  }
 }
-tokenFilterButtons.forEach(button=>button.addEventListener('click',()=>{tokenTransferFilter=button.dataset.tokenFilter;tokenTransferVisible=5;tokenFilterButtons.forEach(item=>item.setAttribute('aria-pressed',String(item===button)));renderTokenTransferList()}));
+tokenFilterButtons.forEach(button=>button.addEventListener('click',()=>{const filter=button.dataset.tokenFilter;if(filter===tokenTransferFilter||!tokenTransferAddress)return;tokenTransferFilter=filter;tokenTransferVisible=5;tokenFilterButtons.forEach(item=>item.setAttribute('aria-pressed',String(item===button)));loadTokenTransfersForFilter(filter)}));
 tokenLoadMore.addEventListener('click',loadMoreTokenTransfers);
 function csvCell(value){let text=String(value??'');if(/^[=+@\- \s\uFEFF\uFF1D\uFF0B\uFF0D\uFF20]/.test(text))text="'"+text;return '"'+text.replaceAll('"','""')+'"'}
 function exactTokenAmount(item){const raw=item.total&&item.total.value,decimals=tokenDecimals(item);if(raw===null||raw===undefined||decimals===null)return '';try{const value=BigInt(String(raw)),base=10n**BigInt(decimals),whole=value/base,fraction=(value%base).toString().padStart(decimals,'0').replace(/0+$/,'');return whole.toString()+(fraction?'.'+fraction:'')}catch{return ''}}
