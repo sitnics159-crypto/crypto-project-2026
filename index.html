@@ -384,6 +384,7 @@ addressForm.addEventListener('submit',async event=>{
 });
 const MARKET_API='https://api.kraken.com/0/public/Ticker?pair=XBTUSD,ETHUSD';const MARKET_OHLC_API='https://api.kraken.com/0/public/OHLC?interval=60&since=';
 const marketRefresh=document.querySelector('#market-refresh'),marketStatus=document.querySelector('#market-status');
+let lastMarketSuccessAt=null;
 const usdFormat=new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',minimumFractionDigits:2,maximumFractionDigits:2});
 function setMarketCard(prefix,name,ticker,referenceOpen){
  const last=Number(ticker&&ticker.c&&ticker.c[0]),open=Number(referenceOpen),high=Number(ticker&&ticker.h&&ticker.h[1]),low=Number(ticker&&ticker.l&&ticker.l[1]);
@@ -439,12 +440,14 @@ async function loadMarketSnapshot(){
   const btcChartReady=btcOpen!==null,ethChartReady=ethOpen!==null;
   const btcReferenceOpen=btcOpen??NaN,ethReferenceOpen=ethOpen??NaN;
   setMarketCard('btc','Bitcoin',btc,btcReferenceOpen);setMarketCard('eth','Ethereum',eth,ethReferenceOpen);updateTransactionFeeEstimate();
+  lastMarketSuccessAt=new Date();
   const changesReady=Number.isFinite(btcReferenceOpen)&&btcReferenceOpen>0&&Number.isFinite(ethReferenceOpen)&&ethReferenceOpen>0;
   const chartStatus=btcChartReady&&ethChartReady?'Графики BTC и ETH построены по часовым свечам.':btcChartReady?'График BTC построен; график ETH временно недоступен.':ethChartReady?'График ETH построен; график BTC временно недоступен.':'Графики BTC и ETH временно недоступны.';
   marketStatus.textContent='Обновлено '+new Intl.DateTimeFormat('ru-RU',{dateStyle:'medium',timeStyle:'short'}).format(new Date())+'. '+(changesReady?'Изменение за 24 ч рассчитано относительно первой доступной часовой свечи в интервале запроса.':'Данные для расчёта изменения за 24 ч временно недоступны.')+' '+chartStatus;
  }catch(err){
   marketStatus.setAttribute('role','alert');
   marketStatus.textContent=err.name==='AbortError'?'Источник отвечает слишком долго. Нажмите «Обновить» для повтора.':err.message==='rate-limit'?'Слишком много запросов к источнику. Подождите и повторите.':'Не удалось получить котировки. Нажмите «Обновить» для повтора.';
+  if(lastMarketSuccessAt){const stamp=new Intl.DateTimeFormat('ru-RU',{dateStyle:'medium',timeStyle:'short'}).format(lastMarketSuccessAt);marketStatus.textContent+=' Последние успешные данные: '+stamp+'. Показанные значения могут быть устаревшими.';}
  }finally{clearTimeout(timeout);marketRefresh.disabled=false}
 }
 marketRefresh.addEventListener('click',loadMarketSnapshot);loadMarketSnapshot();restoreShareableLookup();
