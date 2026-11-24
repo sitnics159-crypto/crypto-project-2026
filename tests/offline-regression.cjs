@@ -330,8 +330,47 @@ const path = require('node:path');
         const incomplete = await run('incomplete');
         const rateLimit = await run('rate-limit');
         const serverError = await run('server-error');
+        const failedState = {
+          message: addressError.textContent,
+          buttonEnabled: !addressButton.disabled,
+          loadingHidden: addressLoading.hidden,
+          resultHidden: addressResult.hidden
+        };
         const timeout = await run('timeout');
-        return { notFound, incomplete, rateLimit, serverError, timeout };
+        let recoveryRequests = 0;
+        window.setTimeout = originalSetTimeout;
+        window.fetch = async url => {
+          recoveryRequests++;
+          const target = new URL(String(url));
+          if (target.pathname.endsWith('/transactions')) {
+            return new Response(JSON.stringify({ items: [], next_page_params: null }), {
+              status: 200, headers: { 'Content-Type': 'application/json' }
+            });
+          }
+          if (target.pathname.endsWith('/token-transfers')) {
+            return new Response(JSON.stringify({ items: [], next_page_params: null }), {
+              status: 200, headers: { 'Content-Type': 'application/json' }
+            });
+          }
+          return new Response(JSON.stringify({
+            hash: address, coin_balance: '0', is_contract: false,
+            is_scam: false, has_tokens: false, has_token_transfers: false
+          }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        };
+        submit();
+        for (let attempt = 0; attempt < 100; attempt++) {
+          await new Promise(resolve => originalSetTimeout(resolve, 5));
+          if (!addressResult.hidden || !addressError.hidden) break;
+        }
+        const recoveredState = {
+          resultVisible: !addressResult.hidden,
+          errorHidden: addressError.hidden,
+          displayedAddress: document.querySelector('#a-hash').textContent.toLowerCase(),
+          buttonEnabled: !addressButton.disabled,
+          loadingHidden: addressLoading.hidden,
+          requestCount: recoveryRequests
+        };
+        return { notFound, incomplete, rateLimit, serverError, timeout, failedState, recoveredState };
       } finally {
         window.fetch = originalFetch;
         window.setTimeout = originalSetTimeout;
@@ -341,8 +380,15 @@ const path = require('node:path');
         !apiErrors.incomplete.includes('Источник вернул неполные данные') ||
         !apiErrors.rateLimit.includes(apiErrorFixture.rateLimit.expected) ||
         !apiErrors.serverError.includes(apiErrorFixture.serverError.expected) ||
-        !apiErrors.timeout.includes(apiErrorFixture.timeout.expected)) {
-      throw new Error('Address lookup API failure handling regression: ' + JSON.stringify(apiErrors));
+        !apiErrors.timeout.includes(apiErrorFixture.timeout.expected) ||
+        !apiErrors.failedState.message.includes(apiErrorFixture.serverError.expected) ||
+        !apiErrors.failedState.buttonEnabled || !apiErrors.failedState.loadingHidden ||
+        !apiErrors.failedState.resultHidden ||
+        !apiErrors.recoveredState.resultVisible || !apiErrors.recoveredState.errorHidden ||
+        apiErrors.recoveredState.displayedAddress !== ('0x' + 'a'.repeat(40)) ||
+        !apiErrors.recoveredState.buttonEnabled || !apiErrors.recoveredState.loadingHidden ||
+        apiErrors.recoveredState.requestCount !== 3) {
+      throw new Error('Address lookup API failure/recovery regression: ' + JSON.stringify(apiErrors));
     }
     console.log('Address lookup 404, incomplete payload, timeout, HTTP 429, and HTTP 5xx fixtures passed');
     // Exercise transaction rendering and request failures using local fixtures only.
