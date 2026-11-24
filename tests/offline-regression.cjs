@@ -9,7 +9,7 @@ const path = require('node:path');
   const apiErrorFixture = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'api-errors.json'), 'utf8'));
   const transactionFixture = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'transaction-states.json'), 'utf8'));
   const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage();
+  const page = await browser.newPage({ acceptDownloads: true });
   page.on('pageerror', error => { throw error; });
   // The offline suite must never depend on Blockscout, Kraken, or any other external host.
   await page.route('**/*', route => {
