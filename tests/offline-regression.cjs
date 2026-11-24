@@ -40,6 +40,9 @@ const path = require('node:path');
     const edgeCases = await page.evaluate(async (paginationFixture) => {
       const amountZeroDecimals = tokenAmount({ total: { value: '12345', decimals: '0' } });
       const amountTiny = tokenAmount({ total: { value: '1', decimals: '18' } });
+      const tinyFee = formatFeeDisplay('1422359');
+      const normalFee = formatFeeDisplay('21000000000000');
+      const zeroFee = formatFeeDisplay('0');
       const amountInvalidDecimals = tokenAmount({ total: { value: '12345', decimals: '256' } });
       const amountMissingDecimals = tokenAmount({ total: { value: '12345' } });
       const amountMetadataFallback = tokenAmount({ total: { value: '1', decimals: '256' }, token: { decimals: '18' } });
@@ -88,10 +91,13 @@ const path = require('node:path');
         window.fetch = originalFetch;
         tokenMetadataCache.delete(retryAddress.toLowerCase());
       }
-      return { amountZeroDecimals, amountTiny, amountInvalidDecimals, amountMissingDecimals, amountMetadataFallback, eventAmountInvalidDecimalsFallback, contractTokenType, localPaginationVisible, formulaCell, newlineFormulaCell, fullwidthFormulaCell, incoming, outgoing, metadataRetry };
+      return { amountZeroDecimals, amountTiny, tinyFee, normalFee, zeroFee, amountInvalidDecimals, amountMissingDecimals, amountMetadataFallback, eventAmountInvalidDecimalsFallback, contractTokenType, localPaginationVisible, formulaCell, newlineFormulaCell, fullwidthFormulaCell, incoming, outgoing, metadataRetry };
     }, paginationFixture);
     if (edgeCases.amountZeroDecimals !== '12345') throw new Error('Zero-decimals token amount failed: ' + edgeCases.amountZeroDecimals);
     if (edgeCases.amountTiny !== '0.000000000000000001') throw new Error('Tiny ERC-20 amount lost precision: ' + edgeCases.amountTiny);
+    if (edgeCases.tinyFee !== '0.000000000001422359 ETH') throw new Error('Tiny positive transaction fee was rounded to zero: ' + edgeCases.tinyFee);
+    if (edgeCases.normalFee !== '0.000021 ETH') throw new Error('Normal transaction fee formatting changed: ' + edgeCases.normalFee);
+    if (edgeCases.zeroFee !== '0 ETH') throw new Error('Zero transaction fee formatting changed: ' + edgeCases.zeroFee);
     if (!edgeCases.amountInvalidDecimals.includes('decimals недоступен')) throw new Error('Invalid decimals were not rejected safely');
     if (!edgeCases.amountMissingDecimals.includes('decimals недоступен')) throw new Error('Missing decimals were not handled safely');
     if (edgeCases.amountMetadataFallback !== '0.000000000000000001') throw new Error('Invalid event decimals did not fall back to valid token metadata: ' + edgeCases.amountMetadataFallback);
