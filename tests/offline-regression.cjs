@@ -582,7 +582,7 @@ const path = require('node:path');
         else if (char === '"') quoted = !quoted;
         else if (!quoted && char === ',') { row.push(field); field = ''; }
         else if (!quoted && char === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
-        else if (char !== '\\r') field += char;
+        else if (char !== '\r') field += char;
       }
       if (field.length || row.length) { row.push(field); rows.push(row); }
       return { filename: download.suggestedFilename(), rows, raw };
