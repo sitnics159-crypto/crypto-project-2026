@@ -192,3 +192,26 @@ These results verify the listed automated jobs and deployment action. They do no
 - Scope: update this checkpoint with merged PRs #63–#66, current main SHA, CI results, and remaining release-readiness work. No application code, workflow configuration, deployment settings, or main-branch changes are included.
 - PR #60 was not modified or closed; its disposition remains separate.
 - Next action: complete the manual mobile/desktop visual review and verify the new API failure/recovery UI states.
+
+
+### Focused source and CI security review — 2026-11-24
+
+Reviewed the current `main` source at `05e54389ab1b1796e65e2797b6c84f6578a6cffb`, including `index.html`, the four GitHub Actions workflows, `SECURITY.md`, and the deterministic regression tests.
+
+Confirmed in the inspected source:
+
+- No occurrences of `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write`, `eval()`, or `new Function()` were found in `index.html`.
+- API-derived labels, hashes, token names, method strings, status messages, and rendered values are inserted through `textContent` or created as DOM nodes; the code does not use API-provided strings as HTML markup.
+- External links opened in a new tab use `rel="noopener noreferrer"`. Dynamic Blockscout links use fixed HTTPS origins and URL-encoded identifiers; the CSV download uses a locally created Blob URL.
+- Browser data requests in the inspected application code target the fixed Blockscout Sepolia and Kraken public API origins. No wallet connection, signing, transaction submission, private-key, or seed-phrase flow was found in the inspected page.
+- The three test workflows declare `contents: read`; the separate Pages deployment workflow has the additional Pages/id-token permissions required for deployment. Actions are pinned to full commit SHAs in the inspected workflows.
+- The offline regression suite contains a malicious-markup fixture for Blockscout-provided transaction, method, and token strings and asserts that no injected elements or script execution occur. This is targeted regression evidence, not proof of complete XSS immunity.
+
+Remaining security limitations and follow-up:
+
+- This was a focused static source/configuration review, not a penetration test, dependency audit, or independent security assessment.
+- GitHub Pages response headers and any effective Content-Security-Policy/security headers have not yet been verified from the deployed response. Treat hosting-header review as open.
+- Dependency reproducibility and transitive dependency risk were not fully assessed; the CI workflows install pinned direct Playwright/axe versions without a committed lockfile.
+- Continue manual review of deployed behavior and hosting configuration before declaring release readiness.
+
+Scope of this checkpoint update: documentation only. No application code, workflow, Pages configuration, repository settings, or `main` changes.
