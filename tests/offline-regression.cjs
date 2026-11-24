@@ -453,6 +453,7 @@ const path = require('node:path');
           btcPrice: document.querySelector('#btc-price').textContent,
           ethPrice: document.querySelector('#eth-price').textContent,
           btcChart: document.querySelector('#btc-chart').getAttribute('aria-label'),
+          ethChart: document.querySelector('#eth-chart').getAttribute('aria-label'),
           refreshEnabled: !marketRefresh.disabled
         };
       };
@@ -493,13 +494,19 @@ const path = require('node:path');
         marketRegression.timeout.role !== 'alert' || !marketRegression.timeout.refreshEnabled) {
       throw new Error('Market timeout regression failed: ' + JSON.stringify(marketRegression.timeout));
     }
-    const chartFallbackCases = ['chartsUnavailable', 'btcChartUnavailable', 'ethChartUnavailable',
-      'malformedChartJson', 'incompleteChartPayload'];
-    for (const name of chartFallbackCases) {
-      const state = marketRegression[name];
-      if (!state.status.includes('Котировки доступны, но графики временно не загрузились') ||
+    const chartFallbackCases = [
+      { name: 'chartsUnavailable', btc: false, eth: false, status: 'Графики BTC и ETH временно недоступны.' },
+      { name: 'btcChartUnavailable', btc: false, eth: true, status: 'График ETH построен; график BTC временно недоступен.' },
+      { name: 'ethChartUnavailable', btc: true, eth: false, status: 'График BTC построен; график ETH временно недоступен.' },
+      { name: 'malformedChartJson', btc: true, eth: false, status: 'График BTC построен; график ETH временно недоступен.' },
+      { name: 'incompleteChartPayload', btc: true, eth: false, status: 'График BTC построен; график ETH временно недоступен.' }
+    ];
+    for (const item of chartFallbackCases) {
+      const state = marketRegression[item.name];
+      if (!state.status.includes(item.status) ||
+          Boolean(state.btcChart) !== item.btc || Boolean(state.ethChart) !== item.eth ||
           state.btcPrice !== '$62,000.00' || state.ethPrice !== '$1,800.00' || !state.refreshEnabled) {
-        throw new Error('Market OHLC fallback regression (' + name + ') failed: ' + JSON.stringify(state));
+        throw new Error('Market independent OHLC fallback regression (' + item.name + ') failed: ' + JSON.stringify(state));
       }
     }
     if (!marketRegression.retryAfterError.status.includes('Обновлено') ||
