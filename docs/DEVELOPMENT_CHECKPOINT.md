@@ -1,64 +1,88 @@
 # Development Checkpoint
 
-> Live checkpoint refreshed 2026-11-22 after merging PRs #24, #25, and #28. Refresh GitHub state before relying on any SHA or status below.
+> Verified 2026-11-24 (Moldova local time). GitHub is authoritative; refresh PRs, branches, checks, and repository settings before relying on this snapshot.
 
 ## Repository
+
 - Repository: `sitnics159-crypto/crypto-project-2026`
 - Default branch: `main`
-- Main SHA at this checkpoint update: `e642c924d2d4c6db57f0b0a93598383b26f02995`
-- Continuous Development System (CDS) is present on main from merged PR #26.
-- Product: static prototype for public Ethereum Sepolia transaction/address lookup and reference BTC/ETH market data.
+- Current main SHA: `82a5bf3093f4fc555e20e1547730653bd09f45ee`
+- Product: static prototype for public Ethereum Sepolia transaction/address lookup and public BTC/ETH market reference data.
+- GitHub Pages: https://sitnics159-crypto.github.io/crypto-project-2026/
 
-## Product and safety constraints
-- MVP scope: public Sepolia transaction/address lookup and public market reference data.
-- Never request or handle wallet connections, private keys, seed phrases, or transaction signing/sending.
+## Product and safety boundaries
+
+- Keep the MVP static and read-only: public Sepolia data and public market reference data.
+- Do not add wallet connections, private-key or seed-phrase handling, transaction signing, or transaction submission.
 - Risk labels are evidence-based warnings, not proof of fraud or safety.
-- Changes must improve reliability, security, or commercial value.
+- Changes should improve reliability, security, or commercial value.
 
-## Pull request and merge history (verified 2026-11-22)
-- PR #24 — **Fix token transfer event decimals fallback** — MERGED.
-  - Fixes invalid ERC-20 event decimals fallback to valid token metadata and includes regression coverage.
-  - Merge commit: `83079dfc1c844e34e30e300e22c164e7362053ec`
-  - `validate` and `browser-smoke` passed on reviewed head `ff0b9c2fe85eb1d54a5a8b754e755aeed0d30346`.
-  - URL: https://github.com/sitnics159-crypto/crypto-project-2026/pull/24
-- PR #25 — **Document the continuous evolution principle** — MERGED.
-  - Documents the Innovation & Development Center responsibilities and research → development → testing → release → monitoring lifecycle, with safety and rollback expectations.
-  - Merge commit: `37a60c0bf255202cb09e46076ea9fda48db0cf11`
-  - URL: https://github.com/sitnics159-crypto/crypto-project-2026/pull/25
-- PR #26 — **Add interruption-safe continuous development system** — MERGED.
-  - Added `.github/CONTINUOUS_DEVELOPMENT_SYSTEM.md` and the development checkpoint.
-  - Merge commit: `c115264710b57a9ef24da7fe23e889a5e03eee69`
-  - URL: https://github.com/sitnics159-crypto/crypto-project-2026/pull/26
-- PR #27 — **Refresh live development checkpoint** — OPEN while this checkpoint is being updated.
-  - This PR updates this file to reflect the verified merges and current main SHA.
-  - Its previous head checks (`validate`, `browser-smoke`) both passed on `154b0ac935f30bf1d12c989ca4ba231457ac4cf5`; new checks must be verified on the updated head before merge.
-  - URL: https://github.com/sitnics159-crypto/crypto-project-2026/pull/27
-- PR #28 — **Add weekly CI health checks** — MERGED.
-  - `validate` scheduled Mondays at 05:17 UTC; `browser-smoke` scheduled Mondays at 05:37 UTC. Existing push, pull-request, and manual triggers remain.
-  - Both checks passed on PR head `1fdc5e073c24c2ee0597e694c786b5f76df676b0`.
-  - Merge commit: `e642c924d2d4c6db57f0b0a93598383b26f02995`
-  - URL: https://github.com/sitnics159-crypto/crypto-project-2026/pull/28
+## Verified merged pull requests
 
-## Automation and repository protection
-- GitHub Actions workflow files on main include `validate.yml`, `browser-smoke.yml`, and `static.yml`.
-- `.github/workflows/static.yml` is not empty; it contains the GitHub Pages deployment workflow, restricted to pushes on `main` and manual dispatch.
-- The last confirmed repository inspection reported `main` as unprotected and no repository rulesets. Re-check current settings before making any claim that protection is enabled.
-- The connector previously could not read branch-protection details (HTTP 403); do not infer that a ruleset was saved.
+| PR | Change | Merge commit |
+|---|---|---|
+| #24 | ERC-20 event-decimals fallback | `83079dfc1c844e34e30e300e22c164e7362053ec` |
+| #25 | Continuous evolution principle | `37a60c0bf255202cb09e46076ea9fda48db0cf11` |
+| #26 | Interruption-safe continuous development system | `c115264710b57a9ef24da7fe23e889a5e03eee69` |
+| #27 | Earlier development checkpoint refresh | `d54a7e6d2311c4b6ee7b7cdace492489a6a0abfe` |
+| #28 | Weekly CI health checks | `e642c924d2d4c6db57f0b0a93598383b26f02995` |
+| #30 | Token metadata retries, CSV formula-injection safeguards, immutable Actions pins, Playwright pin | `c158099304812bd96874771d2d82bcf364727915` |
+| #32 | Stale address lookup and pagination response guards | `7b860772d4acedb360c50b3925c38ef08f4a8f33` |
+| #36 | Responsible security reporting policy (`SECURITY.md`) | `82a5bf3093f4fc555e20e1547730653bd09f45ee` |
 
-## Priority work queue
-1. Complete PR #27 only after its updated checkpoint diff and fresh CI checks are verified.
-2. Protect `main` with a repository Ruleset: require pull requests and successful validation checks; block force pushes and branch deletion. Verify the saved ruleset in GitHub after creation.
-3. Review and pin third-party GitHub Actions to immutable commit SHAs; evaluate Playwright/browser version pinning and reproducibility.
-4. Inspect public API rate-limit handling, timeouts, and graceful failure states; add regression tests for any defects found.
-5. Verify GitHub Pages deployment and the published site after code changes.
-6. Consider moving core tests out of workflow-only logic so they can run locally and in CI; review `SECURITY.md` and an appropriate `LICENSE`.
+## Current pull requests and issues
+
+- PR #29 — earlier checkpoint refresh — OPEN but stale and diverged from current `main`; this replacement checkpoint PR supersedes it. Do not merge #29.
+- PR #33 — old security-policy branch — CLOSED; superseded by merged PR #36.
+- PR #36 — security policy — MERGED.
+- Issue #31 — stale address/pagination response race — CLOSED as completed by PR #32.
+- Issue #35 — separate deterministic offline tests from live API smoke tests — OPEN and remains the next engineering task.
+
+## CI and GitHub Pages on current main
+
+All results below are for main SHA `82a5bf3093f4fc555e20e1547730653bd09f45ee`:
+
+- Validate static site: SUCCESS — [run 45346728309](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45346728309).
+- Browser smoke test: SUCCESS — [run 45346728411](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45346728411).
+- GitHub Pages deployment: SUCCESS on attempt 2 — [run 45346728428](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45346728428). Attempt 1 uploaded the Pages artifact but the deploy action temporarily reported that artifact metadata was unavailable; retry succeeded.
+- Workflow success confirms deployment action completion; it is not a substitute for a separate visual browser review of the published site.
+
+## Repository protection
+
+The repository ruleset was independently read from GitHub on 2026-11-24:
+
+- Ruleset: `Protect main`, ID `27884964`, enforcement `active`.
+- Target: `refs/heads/main`; bypass list empty; current user bypass: `never`.
+- Pull requests required; squash is the only allowed merge method.
+- Deletion and non-fast-forward updates are restricted.
+- Required status checks: `validate` and `browser-smoke`, with strict status-check policy enabled.
+- Required approving review count is 0; this ruleset requires a PR and checks but does not require a human approval review.
+
+## Security and reliability notes
+
+- `SECURITY.md` documents private-first vulnerability reporting, a safe fallback if private reporting is unavailable, and the static prototype's no-wallet/no-secret boundaries.
+- Token metadata lookup has a 10-second timeout, deduplicates concurrent requests, caches definitive results, and permits retries after transient failures.
+- CSV export protects formula-like values, including leading whitespace/newlines and full-width formula operators.
+- Address lookup and transaction/ERC-20 pagination use request generations and abort guards so stale responses and stale `finally` handlers cannot overwrite newer UI state.
+- CI dependencies are pinned to immutable GitHub Actions commit SHAs; Playwright is pinned to `1.65.1`.
+- No Content-Security-Policy meta element is present. GitHub Pages does not provide repository-level arbitrary response-header configuration; a meta CSP is not equivalent to an HTTP response header. Revisit hosting only if stronger response-header controls become a release requirement.
+- No wallet connection, private-key, seed-phrase, or transaction signing/sending flow is part of the MVP.
+
+## Next work queue
+
+1. Issue #35: separate deterministic, network-free application tests from live Blockscout/Kraken integration smoke checks. Add fixtures for transaction parsing, token decimals, CSV safety, pagination/filtering, stale requests, and timeout/429/5xx handling.
+2. Keep deterministic tests independent of upstream availability; report offline and live integration layers separately in CI.
+3. Continue final repository and deployment audit after the test split.
+4. Select an appropriate project license before adding a `LICENSE`; do not assume one.
 
 ## Session protocol
-- Start: read this file and `.github/CONTINUOUS_DEVELOPMENT_SYSTEM.md`; refresh main SHA, open PRs, diffs, checks, and settings.
-- Work: use a focused feature branch, inspect relevant source/tests, make minimal changes, run relevant checks, review diff and secrets.
-- Finish: update this checkpoint with date, branch/PR, exact SHAs, tests, risks, and one next action.
+
+- Start by reading this checkpoint and `.github/CONTINUOUS_DEVELOPMENT_SYSTEM.md`, then refresh GitHub state.
+- Use focused branches, inspect relevant code/tests, make minimal changes, run checks, and review the final diff and secrets.
+- Update this checkpoint with the exact date, branch/PR, SHAs, test results, risks, and next action.
 - GitHub is the durable source of truth; chat history is not a substitute.
-- No background development is implied. Automation runs only through configured GitHub Actions or explicitly scheduled supported tasks.
+- Do not merge a PR without explicit user approval for that specific PR.
 
 ## Next action
-Finish the refreshed PR #27 after verifying its updated head SHA, complete diff, and fresh `validate` and `browser-smoke` results. Then configure and independently verify the `main` protection Ruleset.
+
+Implement Issue #35 as a focused test-infrastructure change, preserving the static MVP and no-wallet/no-secret boundaries.
