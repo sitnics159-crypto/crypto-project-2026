@@ -2,7 +2,7 @@
 
 ## Current checkpoint — 2026-11-25
 
-Verified base on `main`: [`7169f6667333de73ff396498965867f333e9b231`](https://github.com/sitnics159-crypto/crypto-project-2026/commit/7169f6667333de73ff396498965867f333e9b231). The historical snapshots below are retained for context.
+Verified base on `main`: [`06902b789b026a7c80b3b0115c325c90808d4fa2`](https://github.com/sitnics159-crypto/crypto-project-2026/commit/06902b789b026a7c80b3b0115c325c90808d4fa2). The historical snapshots below are retained for context.
 
 - [PR #69](https://github.com/sitnics159-crypto/crypto-project-2026/pull/69) merged at the previous baseline and added a hash-based meta CSP. [PR #68](https://github.com/sitnics159-crypto/crypto-project-2026/pull/68) added the npm lockfile. Both browser workflows use `npm ci --ignore-scripts` and install Chromium separately.
 - [PR #60](https://github.com/sitnics159-crypto/crypto-project-2026/pull/60) and [PR #67](https://github.com/sitnics159-crypto/crypto-project-2026/pull/67) are open documentation-only checkpoint proposals. Both diverged from the pre-#73 baseline and have older checkpoint contents. Use this checkpoint for the current release baseline. Issue #35 was completed by PR #38 as recorded in the prior checkpoint work.
@@ -10,10 +10,10 @@ Verified base on `main`: [`7169f6667333de73ff396498965867f333e9b231`](https://gi
 
 ### Current main CI and deployment
 
-- [Deterministic offline tests](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45629167516) — success on push.
-- [Validate static site](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45629167200) — success on push.
-- [Live API integration smoke test](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45629167392) — success on push.
-- [Deploy static content to Pages](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45629167382) — success on push.
+- [Validate static site](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45635614479) — success on push.
+- [Deterministic offline tests](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45635614536) — success on push.
+- [Live API integration smoke test](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45635614520) — success on push.
+- [Deploy static content to Pages](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45635614436) — success on push.
 
 ### Published-site audit
 
@@ -31,6 +31,12 @@ Verified base on `main`: [`7169f6667333de73ff396498965867f333e9b231`](https://gi
 
 - [PR #76](https://github.com/sitnics159-crypto/crypto-project-2026/pull/76) added regression assertions that repeating the lookup restores both activity lists after either simulated Blockscout activity failure. Both cases passed on main.
 - [PR #78](https://github.com/sitnics159-crypto/crypto-project-2026/pull/78) added a persistent address lookup status. On the published site, a successful lookup populated the status with «Обзор адреса готов.» and keyboard focus remained in the address field. The browser regression verifies reset and completion, including partial activity failure and retry.
+
+### Release rehearsal
+
+- Used the [release checklist](RELEASE_CHECKLIST.md) on the candidate at `06902b789b026a7c80b3b0115c325c90808d4fa2`. The Pages upload log listed `index.html` as the sole file, and the browser smoke log confirmed both Kraken quotes.
+- Opened saved Sepolia transaction and address URLs directly and reloaded both results. Invalid input showed format guidance and kept focus in its field. An unknown transaction produced a clear not-found message, and a known hash worked on retry. For the sampled address without history, Blockscout returned an overview with an unknown balance and zero activity. The live address-not-found branch was not exercised.
+- Exported both ERC-20 directions for the public Sepolia test address. The outgoing CSV contained all 50 loaded transfers while five were displayed. The incoming CSV contained both loaded transfers. The event IDs were unique and all rows matched the selected direction and ERC-20 type.
 
 ### Remaining release verification
 
