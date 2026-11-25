@@ -430,12 +430,20 @@ const path = require('node:path');
       const originalSetTimeout = window.setTimeout;
       const address = '0x' + 'b'.repeat(40);
       const makeResponse = (status, body) => ({ ok: status >= 200 && status < 300, status, json: async () => body });
+      const lookupStatus = document.querySelector('#address-lookup-status[role="status"]');
+      if (!lookupStatus) throw new Error('Missing address lookup status');
       const submit = async () => {
         addressInput.value = address;
         addressForm.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+        if (lookupStatus.textContent !== '') throw new Error('Address lookup status did not clear');
         for (let attempt = 0; attempt < 100; attempt++) {
           await new Promise(resolve => originalSetTimeout(resolve, 5));
-          if (!addressResult.hidden && !addressButton.disabled && addressLoading.hidden) return;
+          if (!addressResult.hidden && !addressButton.disabled && addressLoading.hidden) {
+            if (lookupStatus.textContent !== 'Обзор адреса готов.') {
+              throw new Error('Address overview completion announcement is missing');
+            }
+            return;
+          }
         }
         throw new Error('Timed out waiting for partial address result');
       };
@@ -478,7 +486,7 @@ const path = require('node:path');
             addressTxStatus.textContent.includes('Показано 1 из 1') &&
             tokenListStatus.textContent.includes('Показано 1 из 1');
           if (!recovered) throw new Error('Address activity did not recover after retry: ' + failedEndpoint);
-          cases.push({ ...result, recovered });
+          cases.push({ ...result, recovered, completionAnnouncement: lookupStatus.textContent });
         }
         return cases;
       } finally {
