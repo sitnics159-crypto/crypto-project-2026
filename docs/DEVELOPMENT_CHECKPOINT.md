@@ -2,7 +2,7 @@
 
 ## Current checkpoint — 2026-11-25
 
-Verified base on `main`: [`61d6324f3c0df0bab354caa03014b92cc96cf3f2`](https://github.com/sitnics159-crypto/crypto-project-2026/commit/61d6324f3c0df0bab354caa03014b92cc96cf3f2). The historical snapshots below are retained for context.
+Verified base on `main`: [`edfa19ad93d739141a4d2691f23e6c0c7ebdc16d`](https://github.com/sitnics159-crypto/crypto-project-2026/commit/edfa19ad93d739141a4d2691f23e6c0c7ebdc16d). The historical snapshots below are retained for context.
 
 - [PR #69](https://github.com/sitnics159-crypto/crypto-project-2026/pull/69) merged at the previous baseline and added a hash-based meta CSP. [PR #68](https://github.com/sitnics159-crypto/crypto-project-2026/pull/68) added the npm lockfile. Both browser workflows use `npm ci --ignore-scripts` and install Chromium separately.
 - [PR #60](https://github.com/sitnics159-crypto/crypto-project-2026/pull/60) and [PR #67](https://github.com/sitnics159-crypto/crypto-project-2026/pull/67) are open documentation-only checkpoint proposals. Both diverged from the pre-#73 baseline and have older checkpoint contents. Use this checkpoint for the current release baseline. Issue #35 was completed by PR #38 as recorded in the prior checkpoint work.
@@ -10,26 +10,29 @@ Verified base on `main`: [`61d6324f3c0df0bab354caa03014b92cc96cf3f2`](https://gi
 
 ### Current main CI and deployment
 
-- [Deploy static content to Pages](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45620486510) — success on push.
-- [Validate static site](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45620486454) — success on push.
-- [Deterministic offline tests](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45620486415) — success on push.
-- [Live API integration smoke test](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45620486324) — success on push.
+- [Deploy static content to Pages](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45624986944) — success on push.
+- [Validate static site](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45624987200) — success on push.
+- [Deterministic offline tests](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45624986918) — success on push.
+- [Live API integration smoke test](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45624986975) — success on push.
 
 ### Published-site audit
 
 - [GitHub Pages](https://sitnics159-crypto.github.io/crypto-project-2026/) returned HTTP 200 over HTTPS. The downloaded body matched the Git blob for `index.html` at the pre-#73 SHA (`0284d5bf851aab17b056a58f3ac9766bcf5f0b1a`, blob `275607153ff527724b407ed6cd2dacfb8825d089`).
 - The published HTML contains one inline script. Its recomputed SHA-256 matched the meta CSP value. The policy defaults to denying resources and limits API connections to Blockscout Sepolia and Kraken.
 - The observed response included `Strict-Transport-Security: max-age=31556952`. It did not include HTTP `Content-Security-Policy`, `X-Frame-Options`, or `X-Content-Type-Options` headers. The meta policy provides script and resource restrictions. Framing protection would require a response-header control.
-- The live integration workflow loads a local preview against the real APIs. Its market status condition accepts both successful and failure states, and its row-dependent ERC-20 checks are conditional. Its green result therefore does not establish that live market quotes loaded or that all row-dependent checks ran.
+- [PR #74](https://github.com/sitnics159-crypto/crypto-project-2026/pull/74) added checks for both rendered USD quotes when the market panel reports success. Scheduled runs fail if quotes are unavailable. PR and push runs emit a warning in that case. The strict scheduled path has yet to run.
+- The [browser-smoke log after PR #74](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45622009279/job/139232332218) confirmed both Kraken quotes, five initial ERC-20 rows, token-decimal fallback to 18, local expansion to ten rows, and CSV download. The live workflow exercised local expansion; the separate published-site pass below exercised a second API page.
 
 - On the published site, both Kraken USD quotes and hourly histories loaded. Public Sepolia address and transaction lookups succeeded. The ERC-20 list loaded 100 transfers after requesting a second page, and the CSV contained 100 unique transaction-hash/log-index pairs involving the test address.
 - Narrow and wide layout checks found no horizontal overflow. Targeted keyboard checks covered form order, address submission, transaction links, pagination, ERC-20 filters, and CSV export with visible focus outlines.
 - [PR #73](https://github.com/sitnics159-crypto/crypto-project-2026/pull/73) improved the two primary submit buttons. The published page was checked after deployment and both buttons used the new gradient. Calculated white-text contrast at the gradient stops is 5.24:1 and 6.84:1.
 
+- [PR #77](https://github.com/sitnics159-crypto/crypto-project-2026/pull/77) restricted the Pages payload to `index.html`. The deployment log listed that as the sole file. After deployment, the site displayed both Kraken quotes and the public Sepolia test address balance. The three sampled former file URLs (npm manifest, offline test, and checkpoint) displayed the Pages 404 page.
+
 ### Remaining release verification
 
 1. Extend manual accessibility coverage to additional UI states and controls.
-2. Review live smoke assertions for healthy market responses and conditional ERC-20 coverage. The offline suite already exercises timeout, rate-limit, server-error, partial-market, and retry cases.
+2. Verify the first strict scheduled market smoke result and keep conditional ERC-20 coverage visible in the workflow logs. The offline suite already exercises timeout, rate-limit, server-error, partial-market, and retry cases.
 3. Decide whether response-header controls for framing and content-type enforcement are required for launch.
 4. Keep the MVP static and read-only. The planned commercial launch date of 2026-12-25 remains a target pending release verification.
 
