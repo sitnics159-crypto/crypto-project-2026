@@ -9,3 +9,14 @@ assert.equal(translate('fr','loading'),'Загрузка…');
 assert.equal(translate('en','unknown'),'unknown');
 assert.equal(translate('en','constructor'),'constructor');
 console.log('i18n regression assertions passed');
+
+// Ensure locale dictionaries cannot be mutated at runtime.
+assert.ok(Object.isFrozen(messages));
+for (const dictionary of Object.values(messages)) {
+  assert.ok(Object.isFrozen(dictionary));
+  for (const value of Object.values(dictionary)) assert.ok(typeof value === 'string' && value.trim().length > 0);
+}
+assert.equal(resolveLocale('en-Latn-US'),'en');
+assert.equal(resolveLocale('ar','unsupported'),'ru');
+assert.equal(translate('en','__proto__'),'__proto__');
+console.log('Locale immutability and fallback assertions passed');
