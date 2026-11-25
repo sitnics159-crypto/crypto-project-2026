@@ -36,7 +36,7 @@ Verified base on `main`: [`7169f6667333de73ff396498965867f333e9b231`](https://gi
 
 1. Verify spoken output with a screen reader, including the new address overview status. Browser markup and focus checks are already recorded above.
 2. Verify the first strict scheduled market smoke result and keep conditional ERC-20 coverage visible in the workflow logs. The offline suite already exercises timeout, rate-limit, server-error, partial-market, and retry cases.
-3. Decide whether response-header controls for framing and content-type enforcement are required for launch.
+3. Keep GitHub Pages for the current static, read-only MVP. The latest observed HTTP response did not include framing or MIME-sniffing protections. Revisit hosting if response-header controls become a release requirement or the product adds sensitive or state-changing interactions. The previous header sample is recorded above; headers have yet to be reverified on the current deployment.
 4. Keep the MVP static and read-only. The planned commercial launch date of 2026-12-25 remains a target pending release verification.
 
 ---
