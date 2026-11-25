@@ -1,6 +1,37 @@
 # Development Checkpoint
 
-> Historical checkpoint originally verified 2026-11-24. The authoritative post-PR #62 state is recorded in the final section below; it supersedes conflicting earlier snapshot details.
+## Current checkpoint — 2026-11-25
+
+Verified base on `main`: [`0284d5bf851aab17b056a58f3ac9766bcf5f0b1a`](https://github.com/sitnics159-crypto/crypto-project-2026/commit/0284d5bf851aab17b056a58f3ac9766bcf5f0b1a). The historical snapshots below are retained for context.
+
+- [PR #69](https://github.com/sitnics159-crypto/crypto-project-2026/pull/69) merged at the verified base and added a hash-based meta CSP. [PR #68](https://github.com/sitnics159-crypto/crypto-project-2026/pull/68) added the npm lockfile. Both browser workflows use `npm ci --ignore-scripts` and install Chromium separately.
+- [PR #60](https://github.com/sitnics159-crypto/crypto-project-2026/pull/60) and [PR #67](https://github.com/sitnics159-crypto/crypto-project-2026/pull/67) are open documentation-only checkpoint proposals. Compared with the verified base, #60 is 2 commits ahead and 10 behind, and #67 is 2 ahead and 4 behind. Use this checkpoint for the current release baseline. Issue #35 was completed by PR #38 as recorded in the prior checkpoint work.
+- [Protect main](https://github.com/sitnics159-crypto/crypto-project-2026/rules/27884964) is active for `refs/heads/main`. It requires a PR, squash merge, and strict `validate` and `browser-smoke` status checks. The bypass list is empty.
+
+### Exact-base CI and deployment
+
+- [Deploy static content to Pages](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45604221784) — success on push.
+- [Live API integration smoke test](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45604221606) — success on push.
+- [Deterministic offline tests](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45604221691) — success on push.
+- [Validate static site](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45604221525) — success on push.
+
+### Published-site audit
+
+- [GitHub Pages](https://sitnics159-crypto.github.io/crypto-project-2026/) returned HTTP 200 over HTTPS. The downloaded body matched the Git blob for `index.html` at the verified SHA (`275607153ff527724b407ed6cd2dacfb8825d089`).
+- The published HTML contains one inline script. Its recomputed SHA-256 matched the meta CSP value. The policy defaults to denying resources and limits API connections to Blockscout Sepolia and Kraken.
+- The observed response included `Strict-Transport-Security: max-age=31556952`. It did not include HTTP `Content-Security-Policy`, `X-Frame-Options`, or `X-Content-Type-Options` headers. The meta policy provides script and resource restrictions. Framing protection would require a response-header control.
+- The live integration workflow loads a local preview against the real APIs. Its market status condition accepts both successful and failure states, and its row-dependent ERC-20 checks are conditional. Its green result therefore does not establish that live market quotes loaded or that all row-dependent checks ran.
+
+### Remaining release verification
+
+1. Review the published UI on desktop and mobile, including keyboard navigation and gradient text contrast.
+2. Confirm transaction and address lookup, ERC-20 filters/pagination/CSV, and both market quotes on the published build. Check the offline fixtures for timeout, rate limits, and partial failures when assessing recovery coverage.
+3. Decide whether response-header controls for framing and content-type enforcement are required for launch.
+4. Keep the MVP static and read-only. The planned commercial launch date of 2026-12-25 remains a target pending release verification.
+
+---
+
+> Historical checkpoint originally verified 2026-11-24. The section after PR #62 is a later historical snapshot.
 
 ## Repository
 
