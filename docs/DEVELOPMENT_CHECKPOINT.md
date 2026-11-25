@@ -2,7 +2,7 @@
 
 ## Current checkpoint — 2026-11-25
 
-Verified base on `main`: [`e7ad9ea9ba5a552b3e4f7db7eeceee526e659ddf`](https://github.com/sitnics159-crypto/crypto-project-2026/commit/e7ad9ea9ba5a552b3e4f7db7eeceee526e659ddf). The historical snapshots below are retained for context.
+Verified base on `main`: [`edfa19ad93d739141a4d2691f23e6c0c7ebdc16d`](https://github.com/sitnics159-crypto/crypto-project-2026/commit/edfa19ad93d739141a4d2691f23e6c0c7ebdc16d). The historical snapshots below are retained for context.
 
 - [PR #69](https://github.com/sitnics159-crypto/crypto-project-2026/pull/69) merged at the previous baseline and added a hash-based meta CSP. [PR #68](https://github.com/sitnics159-crypto/crypto-project-2026/pull/68) added the npm lockfile. Both browser workflows use `npm ci --ignore-scripts` and install Chromium separately.
 - [PR #60](https://github.com/sitnics159-crypto/crypto-project-2026/pull/60) and [PR #67](https://github.com/sitnics159-crypto/crypto-project-2026/pull/67) are open documentation-only checkpoint proposals. Both diverged from the pre-#73 baseline and have older checkpoint contents. Use this checkpoint for the current release baseline. Issue #35 was completed by PR #38 as recorded in the prior checkpoint work.
@@ -10,10 +10,10 @@ Verified base on `main`: [`e7ad9ea9ba5a552b3e4f7db7eeceee526e659ddf`](https://gi
 
 ### Current main CI and deployment
 
-- [Deploy static content to Pages](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45622009127) — success on push.
-- [Validate static site](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45622009319) — success on push.
-- [Live API integration smoke test](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45622009279) — success on push.
-- [Deterministic offline tests](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45622009285) — success on push.
+- [Deploy static content to Pages](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45624986944) — success on push.
+- [Validate static site](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45624987200) — success on push.
+- [Deterministic offline tests](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45624986918) — success on push.
+- [Live API integration smoke test](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45624986975) — success on push.
 
 ### Published-site audit
 
@@ -21,11 +21,13 @@ Verified base on `main`: [`e7ad9ea9ba5a552b3e4f7db7eeceee526e659ddf`](https://gi
 - The published HTML contains one inline script. Its recomputed SHA-256 matched the meta CSP value. The policy defaults to denying resources and limits API connections to Blockscout Sepolia and Kraken.
 - The observed response included `Strict-Transport-Security: max-age=31556952`. It did not include HTTP `Content-Security-Policy`, `X-Frame-Options`, or `X-Content-Type-Options` headers. The meta policy provides script and resource restrictions. Framing protection would require a response-header control.
 - [PR #74](https://github.com/sitnics159-crypto/crypto-project-2026/pull/74) added checks for both rendered USD quotes when the market panel reports success. Scheduled runs fail if quotes are unavailable. PR and push runs emit a warning in that case. The strict scheduled path has yet to run.
-- The [browser-smoke log on current main](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45622009279/job/139232332218) confirmed both Kraken quotes, five initial ERC-20 rows, token-decimal fallback to 18, local expansion to ten rows, and CSV download. The live workflow exercised local expansion; the separate published-site pass below exercised a second API page.
+- The [browser-smoke log after PR #74](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45622009279/job/139232332218) confirmed both Kraken quotes, five initial ERC-20 rows, token-decimal fallback to 18, local expansion to ten rows, and CSV download. The live workflow exercised local expansion; the separate published-site pass below exercised a second API page.
 
 - On the published site, both Kraken USD quotes and hourly histories loaded. Public Sepolia address and transaction lookups succeeded. The ERC-20 list loaded 100 transfers after requesting a second page, and the CSV contained 100 unique transaction-hash/log-index pairs involving the test address.
 - Narrow and wide layout checks found no horizontal overflow. Targeted keyboard checks covered form order, address submission, transaction links, pagination, ERC-20 filters, and CSV export with visible focus outlines.
 - [PR #73](https://github.com/sitnics159-crypto/crypto-project-2026/pull/73) improved the two primary submit buttons. The published page was checked after deployment and both buttons used the new gradient. Calculated white-text contrast at the gradient stops is 5.24:1 and 6.84:1.
+
+- [PR #77](https://github.com/sitnics159-crypto/crypto-project-2026/pull/77) restricted the Pages payload to `index.html`. The deployment log listed that as the sole file. After deployment, the site displayed both Kraken quotes and the public Sepolia test address balance. The three sampled former file URLs (npm manifest, offline test, and checkpoint) displayed the Pages 404 page.
 
 ### Remaining release verification
 
