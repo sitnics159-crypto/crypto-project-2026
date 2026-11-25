@@ -39,6 +39,13 @@ Verified base on `main`: [`7169f6667333de73ff396498965867f333e9b231`](https://gi
 3. Keep GitHub Pages for the current static, read-only MVP. The latest observed HTTP response did not include framing or MIME-sniffing protections. Revisit hosting if response-header controls become a release requirement or the product adds sensitive or state-changing interactions. The previous header sample is recorded above; headers have yet to be reverified on the current deployment.
 4. Keep the MVP static and read-only. The planned commercial launch date of 2026-12-25 remains a target pending release verification.
 
+### GitHub Pages rollback
+
+1. Identify the change responsible for the regression and verify the last known-good Pages deployment. For a regression introduced by [PR #78](https://github.com/sitnics159-crypto/crypto-project-2026/pull/78), the verified pre-change baseline is `5d338fe65bce583b05a01720c54c58a83b5865b0` ([successful deploy](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45627749375)).
+2. Create a branch from current `main` and revert the responsible squash commit. Review the diff for unrelated changes. If the revert conflicts with later changes, resolve it on the branch and verify the intended application or deployment behavior.
+3. Open a rollback PR. Wait for `validate`, `browser-smoke`, and `offline-tests` on the current PR head and obtain explicit approval for the squash merge under Protect main.
+4. After merge, verify CI and Pages deployment on the exact new `main` SHA. Check that the uploaded site contains only `index.html`, then open the published site and confirm a known Sepolia transaction, a known address balance, and both Kraken USD quotes. Record the rollback PR, the post-merge SHA, the deployment run, and any degraded behavior.
+
 ---
 
 > Historical checkpoint originally verified 2026-11-24. The section after PR #62 is a later historical snapshot.
