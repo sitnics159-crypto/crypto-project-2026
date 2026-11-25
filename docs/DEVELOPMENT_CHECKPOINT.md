@@ -40,7 +40,7 @@ Verified base on `main`: [`06902b789b026a7c80b3b0115c325c90808d4fa2`](https://gi
 
 ### Remaining release verification
 
-1. Verify spoken output with a screen reader, including the new address overview status. Browser markup and focus checks are already recorded above.
+1. Address overview speech check completed on 2026-11-25. The project owner reported hearing «Обзор адреса готов» from Windows Narrator after submitting the public Sepolia test address with Enter on the published site. This was a targeted manual check of the completion announcement.
 2. Verify the first strict scheduled market smoke result and keep conditional ERC-20 coverage visible in the workflow logs. The offline suite already exercises timeout, rate-limit, server-error, partial-market, and retry cases.
 3. Keep GitHub Pages for the current static, read-only MVP. The latest observed HTTP response did not include framing or MIME-sniffing protections. Revisit hosting if response-header controls become a release requirement or the product adds sensitive or state-changing interactions. The previous header sample is recorded above; headers have yet to be reverified on the current deployment.
 4. Keep the MVP static and read-only. The planned commercial launch date of 2026-12-25 remains a target pending release verification.
