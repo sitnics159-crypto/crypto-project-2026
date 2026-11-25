@@ -60,6 +60,8 @@ jobs:
 
           echo "::error::Pages artifact ${EXPECTED_ARTIFACT} was not visible through the Actions API after 150 seconds."
           exit 1
+      - name: Wait for artifact synchronization
+        run: sleep 30
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
