@@ -2,7 +2,7 @@
 
 ## Current checkpoint — 2026-11-25
 
-Verified base on `main`: [`edfa19ad93d739141a4d2691f23e6c0c7ebdc16d`](https://github.com/sitnics159-crypto/crypto-project-2026/commit/edfa19ad93d739141a4d2691f23e6c0c7ebdc16d). The historical snapshots below are retained for context.
+Verified base on `main`: [`7169f6667333de73ff396498965867f333e9b231`](https://github.com/sitnics159-crypto/crypto-project-2026/commit/7169f6667333de73ff396498965867f333e9b231). The historical snapshots below are retained for context.
 
 - [PR #69](https://github.com/sitnics159-crypto/crypto-project-2026/pull/69) merged at the previous baseline and added a hash-based meta CSP. [PR #68](https://github.com/sitnics159-crypto/crypto-project-2026/pull/68) added the npm lockfile. Both browser workflows use `npm ci --ignore-scripts` and install Chromium separately.
 - [PR #60](https://github.com/sitnics159-crypto/crypto-project-2026/pull/60) and [PR #67](https://github.com/sitnics159-crypto/crypto-project-2026/pull/67) are open documentation-only checkpoint proposals. Both diverged from the pre-#73 baseline and have older checkpoint contents. Use this checkpoint for the current release baseline. Issue #35 was completed by PR #38 as recorded in the prior checkpoint work.
@@ -10,10 +10,10 @@ Verified base on `main`: [`edfa19ad93d739141a4d2691f23e6c0c7ebdc16d`](https://gi
 
 ### Current main CI and deployment
 
-- [Deploy static content to Pages](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45624986944) — success on push.
-- [Validate static site](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45624987200) — success on push.
-- [Deterministic offline tests](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45624986918) — success on push.
-- [Live API integration smoke test](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45624986975) — success on push.
+- [Deterministic offline tests](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45629167516) — success on push.
+- [Validate static site](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45629167200) — success on push.
+- [Live API integration smoke test](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45629167392) — success on push.
+- [Deploy static content to Pages](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45629167382) — success on push.
 
 ### Published-site audit
 
@@ -29,9 +29,12 @@ Verified base on `main`: [`edfa19ad93d739141a4d2691f23e6c0c7ebdc16d`](https://gi
 
 - [PR #77](https://github.com/sitnics159-crypto/crypto-project-2026/pull/77) restricted the Pages payload to `index.html`. The deployment log listed that as the sole file. After deployment, the site displayed both Kraken quotes and the public Sepolia test address balance. The three sampled former file URLs (npm manifest, offline test, and checkpoint) displayed the Pages 404 page.
 
+- [PR #76](https://github.com/sitnics159-crypto/crypto-project-2026/pull/76) added regression assertions that repeating the lookup restores both activity lists after either simulated Blockscout activity failure. Both cases passed on main.
+- [PR #78](https://github.com/sitnics159-crypto/crypto-project-2026/pull/78) added a persistent address lookup status. On the published site, a successful lookup populated the status with «Обзор адреса готов.» and keyboard focus remained in the address field. The browser regression verifies reset and completion, including partial activity failure and retry.
+
 ### Remaining release verification
 
-1. Extend manual accessibility coverage to additional UI states and controls.
+1. Verify spoken output with a screen reader, including the new address overview status. Browser markup and focus checks are already recorded above.
 2. Verify the first strict scheduled market smoke result and keep conditional ERC-20 coverage visible in the workflow logs. The offline suite already exercises timeout, rate-limit, server-error, partial-market, and retry cases.
 3. Decide whether response-header controls for framing and content-type enforcement are required for launch.
 4. Keep the MVP static and read-only. The planned commercial launch date of 2026-12-25 remains a target pending release verification.
