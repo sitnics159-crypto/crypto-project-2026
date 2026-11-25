@@ -1,5 +1,6 @@
 const { chromium } = require('playwright');
 const fs = require('node:fs');
+const crypto = require('node:crypto');
 const path = require('node:path');
 
 (async () => {
@@ -20,6 +21,38 @@ const path = require('node:path');
   try {
     await page.goto('http://127.0.0.1:4173/', { waitUntil: 'domcontentloaded' });
     if (!(await page.title()).includes('Sepolia')) throw new Error('Unexpected page title');
+
+    // Keep the static CSP hash synchronized with the sole inline application script.
+    const sourceHtml = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+    const cspMatch = sourceHtml.match(/<meta http-equiv="Content-Security-Policy" content="([^"]+)">/i);
+    const inlineScripts = [...sourceHtml.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)];
+    if (!cspMatch || inlineScripts.length !== 1) {
+      throw new Error('Expected one inline application script and a meta CSP policy');
+    }
+    const expectedScriptHash = "'sha256-" +
+      crypto.createHash('sha256').update(inlineScripts[0][1], 'utf8').digest('base64') + "'";
+    const cspDirectives = new Map(cspMatch[1].split(';').map(part => {
+      const [name, ...values] = part.trim().split(/\s+/);
+      return [name, values.join(' ')];
+    }));
+    const scriptSources = cspDirectives.get('script-src') || '';
+    const connectSources = cspDirectives.get('connect-src') || '';
+    for (const [directive, expected] of [
+      ['default-src', "'none'"], ['base-uri', "'none'"],
+      ['object-src', "'none'"], ['form-action', "'self'"]
+    ]) {
+      if (cspDirectives.get(directive) !== expected) {
+        throw new Error('CSP directive mismatch: ' + directive);
+      }
+    }
+    if (!scriptSources.includes(expectedScriptHash) || scriptSources.includes("'unsafe-inline'")) {
+      throw new Error('CSP must authorize the app only by its current inline-script hash');
+    }
+    if (connectSources !== 'https://eth-sepolia.blockscout.com https://api.kraken.com') {
+      throw new Error('CSP connect-src must stay limited to the fixed public API origins');
+    }
+    console.log('Static CSP hash and restrictive directives passed');
+
 
     // Mobile input sizing must avoid iOS focus zoom; keyboard focus must remain visible.
     await page.setViewportSize({ width: 390, height: 844 });
