@@ -73,6 +73,20 @@ jobs:
               }, { timeout: 25000 });
               const market = await page.locator('#market-status').innerText();
               console.log('Market status:', market);
+              if (market.startsWith('Обновлено')) {
+                for (const id of ['#btc-price', '#eth-price']) {
+                  const quote = (await page.locator(id).innerText()).trim();
+                  const price = Number(quote.slice(1).replace(/,/g, ''));
+                  if (!/^\$[\d,]+\.\d{2}$/.test(quote) || !Number.isFinite(price) || price <= 0) {
+                    throw new Error('Market reported success without a valid USD quote for ' + id + ': ' + quote);
+                  }
+                }
+                console.log('Both live Kraken USD quotes rendered.');
+              } else if (process.env.GITHUB_EVENT_NAME === 'schedule') {
+                throw new Error('Scheduled live check did not load Kraken quotes: ' + market);
+              } else {
+                console.warn('Kraken quote check unavailable in this run:', market);
+              }
 
               const address = '0xd482cCc8EC97e9cA7a365F2403bf7f228aD149A0';
               await page.locator('#address-input').fill(address);
