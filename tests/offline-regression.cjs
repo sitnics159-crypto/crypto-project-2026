@@ -442,10 +442,11 @@ const path = require('node:path');
       const cases = [];
       try {
         for (const failedEndpoint of ['transactions', 'token-transfers']) {
+          let failingEndpoint = failedEndpoint;
           window.fetch = async url => {
             const target = String(url);
-            if (target.endsWith('/transactions') && failedEndpoint === 'transactions') return makeResponse(503, {});
-            if (target.includes('/token-transfers') && failedEndpoint === 'token-transfers') return makeResponse(429, {});
+            if (target.endsWith('/transactions') && failingEndpoint === 'transactions') return makeResponse(503, {});
+            if (target.includes('/token-transfers') && failingEndpoint === 'token-transfers') return makeResponse(429, {});
             if (target.endsWith('/transactions')) return makeResponse(200, { items: [{ hash: address + '-tx' }], next_page_params: null });
             if (target.includes('/token-transfers')) return makeResponse(200, { items: [{ transaction_hash: address + '-token', token_type: 'ERC-20' }], next_page_params: null });
             return makeResponse(200, { hash: address, coin_balance: '0', is_contract: false });
@@ -471,7 +472,13 @@ const path = require('node:path');
           if (failedEndpoint === 'token-transfers' && (!result.tokenStatus.includes('Blockscout ограничил частоту') || result.txCount !== 1)) {
             throw new Error('Token endpoint failure did not remain isolated: ' + JSON.stringify(result));
           }
-          cases.push(result);
+          failingEndpoint = null;
+          await submit();
+          const recovered = addressTxItems.length === 1 && tokenTransferItems.length === 1 &&
+            addressTxStatus.textContent.includes('Показано 1 из 1') &&
+            tokenListStatus.textContent.includes('Показано 1 из 1');
+          if (!recovered) throw new Error('Address activity did not recover after retry: ' + failedEndpoint);
+          cases.push({ ...result, recovered });
         }
         return cases;
       } finally {
