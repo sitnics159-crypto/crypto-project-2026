@@ -16,3 +16,21 @@ export function normalizeTokenBalance(item) {
   }
   return { address, symbol: typeof token.symbol === 'string' ? token.symbol.slice(0, 80) : '', name: typeof token.name === 'string' ? token.name.slice(0, 160) : '', amount };
 }
+
+// Blockscout token-balances returns an array, not transfer history.
+export function normalizeTokenBalances(payload) {
+  if (!Array.isArray(payload)) throw new TypeError('Invalid token balances response');
+  const balances = [], seen = new Set();
+  let incomplete = false;
+  for (const item of payload) {
+    if (item?.token?.type !== 'ERC-20') { if (!item?.token?.type) incomplete = true; continue; }
+    const balance = normalizeTokenBalance(item);
+    if (!balance) { incomplete = true; continue; }
+    const key = balance.address.toLowerCase();
+    if (seen.has(key)) { incomplete = true; continue; }
+    seen.add(key);
+    if (balance.amount === null) incomplete = true;
+    balances.push(balance);
+  }
+  return { balances, incomplete };
+}
