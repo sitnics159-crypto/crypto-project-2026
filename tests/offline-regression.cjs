@@ -22,6 +22,37 @@ const path = require('node:path');
     await page.goto('http://127.0.0.1:4173/', { waitUntil: 'domcontentloaded' });
     if (!(await page.title()).includes('Sepolia')) throw new Error('Unexpected page title');
 
+    const lookupNotice = page.locator('p.foot').filter({ hasText: 'Поисковые данные:' });
+    if (!(await lookupNotice.isVisible()) ||
+        !/Blockscout Sepolia.*получатель увидит этот хеш или адрес.*Kraken/.test(await lookupNotice.innerText())) {
+      throw new Error('Expected a visible explanation of lookup data and shared links');
+    }
+    if (await page.locator('meta[name="referrer"]').getAttribute('content') !== 'no-referrer') {
+      throw new Error('Expected the document-wide no-referrer policy');
+    }
+
+    const previewUrl = 'http://127.0.0.1:4173/';
+    const destinationUrl = previewUrl + '?referrer-check=destination';
+    await page.evaluate(destination => {
+      const lookupUrl = new URL(window.location.href);
+      lookupUrl.searchParams.set('address', '0x' + 'a'.repeat(40));
+      window.history.replaceState(null, '', lookupUrl);
+
+      const link = document.createElement('a');
+      link.href = destination;
+      link.textContent = 'Referrer policy test';
+      document.body.append(link);
+    }, destinationUrl);
+    await Promise.all([
+      page.waitForURL(destinationUrl),
+      page.getByRole('link', { name: 'Referrer policy test' }).click()
+    ]);
+    if (await page.evaluate(() => document.referrer) !== '') {
+      throw new Error('The destination received a referrer for a URL containing a lookup identifier');
+    }
+    console.log('Lookup privacy notice and no-referrer navigation passed');
+    await page.goto(previewUrl, { waitUntil: 'domcontentloaded' });
+
     // Keep the static CSP hash synchronized with the sole inline application script.
     const sourceHtml = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
     const cspMatch = sourceHtml.match(/<meta http-equiv="Content-Security-Policy" content="([^"]+)">/i);
@@ -820,10 +851,16 @@ const path = require('node:path');
               total: { value: '7000000000000000', decimals: '18' }, block_number: 101, timestamp: '2026-11-24T09:01:00.000Z'
             }], next_page_params: null
           };
-          return Promise.resolve(new Response(JSON.stringify(payload), {
+          const response = new Response(JSON.stringify(payload), {
             status: 200,
             headers: { 'Content-Type': 'application/json' }
-          }));
+          });
+          if (directionFilter === 'to') {
+            return new Promise(resolve => {
+              window.__finishIncomingTransferResponse = () => resolve(response);
+            });
+          }
+          return Promise.resolve(response);
         }
         return originalFetch(url, options);
       };
@@ -902,6 +939,12 @@ const path = require('node:path');
     }
 
     await page.locator('[data-token-filter="incoming"]').click();
+    await page.waitForFunction(() => typeof window.__finishIncomingTransferResponse === 'function');
+    if (!(await page.locator('#token-export').isDisabled()) ||
+        (await page.locator('#token-export-status').innerText()).trim() !== '') {
+      throw new Error('CSV export must be disabled and clear its prior status while a new filter loads');
+    }
+    await page.evaluate(() => window.__finishIncomingTransferResponse());
     await page.waitForFunction(() => !tokenTransferLoading && tokenTransferFilter === 'incoming' && tokenTransferItems.length === 1);
     if (!(await page.evaluate(() => window.__shareableAddressFetches.some(url => new URL(url).searchParams.get('filter') === 'to')))) {
       throw new Error('Incoming CSV filter did not issue Blockscout filter=to request');
