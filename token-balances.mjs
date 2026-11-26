@@ -34,3 +34,10 @@ export function normalizeTokenBalances(payload) {
   }
   return { balances, incomplete };
 }
+
+export async function fetchTokenBalances(address, { signal, fetcher = globalThis.fetch } = {}) {
+  if (typeof address !== 'string' || !/^0x[0-9a-fA-F]{40}$/.test(address)) throw new TypeError('Invalid address');
+  const response = await fetcher('https://eth-sepolia.blockscout.com/api/v2/addresses/' + encodeURIComponent(address) + '/token-balances', { signal, headers: { Accept: 'application/json' }, credentials: 'omit', redirect: 'error' });
+  if (!response.ok) throw new Error('Token balance HTTP ' + response.status);
+  return normalizeTokenBalances(await response.json());
+}
