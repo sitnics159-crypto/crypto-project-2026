@@ -6,7 +6,13 @@ if (!key) {
   process.exit(2);
 }
 
-const api = 'https://api.blockscout.com/11155111/api/v2';
+if (!/^proapi_[A-Za-z0-9_-]+$/.test(key)) {
+  console.error('BLOCKSCOUT_API_KEY must contain only the Pro API key, starting with proapi_.');
+  process.exit(2);
+}
+
+const apiOrigin = 'https://api.blockscout.com';
+const sepolia = '11155111';
 const hash = '0x616c86b82eaa5485aa04e9773bd281bbc8fd9cd6b050efcc2f864bed50707204';
 const address = '0xd482cCc8EC97e9cA7a365F2403bf7f228aD149A0';
 const token = '0x50B1eF6e0fe05a32F3E63F02f3c0151BD9004C7c';
@@ -14,11 +20,11 @@ const addressPath = '/addresses/' + address;
 
 let lastRequestStart = 0;
 
-async function get(label, path, params = {}) {
+async function get(label, path, params = {}, chain = sepolia) {
   const delay = 250 - (Date.now() - lastRequestStart);
   if (delay > 0) await new Promise(resolve => setTimeout(resolve, delay));
   lastRequestStart = Date.now();
-  const url = new URL(api + path);
+  const url = new URL('/' + chain + '/api/v2' + path, apiOrigin);
   for (const [name, value] of Object.entries(params)) {
     if (name.toLowerCase() === 'apikey' || value == null) continue;
     if (!['string', 'number', 'boolean'].includes(typeof value)) {
@@ -34,7 +40,7 @@ async function get(label, path, params = {}) {
   } catch {
     throw new Error(label + ': request failed or timed out');
   }
-  if (!response.ok) throw new Error(label + ': HTTP ' + response.status);
+  if (!response.ok) throw Object.assign(new Error(label + ': HTTP ' + response.status), { status: response.status });
   try {
     return await response.json();
   } catch {
@@ -53,7 +59,22 @@ function transferId(item) {
 }
 
 try {
-  const transaction = await get('transaction', '/transactions/' + hash);
+  let transaction;
+  try {
+    transaction = await get('Sepolia transaction', '/transactions/' + hash);
+  } catch (error) {
+    if (error.status === 401) {
+      try {
+        await get('Ethereum control request', '/addresses/0xd8da6bf26964af9d7eed9e03e53415d37aa96045/transactions', {}, '1');
+        console.error('Ethereum accepted the key; Sepolia rejected the transaction request.');
+      } catch (controlError) {
+        console.error(controlError.status === 401
+          ? 'Both Ethereum and Sepolia rejected authorization.'
+          : 'The Ethereum control request did not verify authorization.');
+      }
+    }
+    throw error;
+  }
   assert.ok(transaction?.hash?.toLowerCase() === hash, 'Expected the requested transaction');
   assert.ok(transaction.fee != null || (transaction.gas_used != null && transaction.gas_price != null),
     'Expected transaction fee or gas fields');
