@@ -1015,6 +1015,7 @@ const path = require('node:path');
         await metadataStarted;
         tokenTransferFilter = 'outgoing';
         tokenTransferAddress = changedAddress;
+        tokenExportStatus.textContent = 'Current lookup status';
         releaseMetadata();
         await pendingExport;
         return {
@@ -1038,12 +1039,12 @@ const path = require('node:path');
     const raceAddressSuffix = 'd'.repeat(8);
     if (!csvExportRace.filename.includes(raceAddressSuffix) ||
         !csvExportRace.filename.endsWith('-incoming.csv') ||
-        !csvExportRace.status.includes('1 загруженных переводов (входящие)') ||
+        csvExportRace.status !== 'Current lookup status' ||
         !csvExportRace.csv.includes('0x' + '9'.repeat(64)) ||
         !csvExportRace.csv.includes('1.234567')) {
       throw new Error('CSV export state snapshot race regression failed: ' + JSON.stringify(csvExportRace));
     }
-    console.log('CSV export keeps the initiating address and filter while token metadata resolves');
+    console.log('CSV export keeps the initiating address and filter without overwriting the current status');
 
     // Verify address transaction/token pagination failures preserve state and can be retried.
     const paginationRegression = await page.evaluate(async () => {
