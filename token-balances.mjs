@@ -11,6 +11,7 @@ export function normalizeTokenBalance(item) {
       (typeof decimals === 'string' || typeof decimals === 'number') &&
       /^[0-9]{1,3}$/.test(String(decimals)) && Number(decimals) <= 255) {
     const d = Number(decimals), value = BigInt(raw), base = 10n ** BigInt(d);
+    if (value > (1n << 256n) - 1n) return { address, symbol: '', name: '', amount: null };
     const fraction = (value % base).toString().padStart(d, '0').replace(/0+$/, '');
     amount = String(value / base) + (fraction ? '.' + fraction : '');
   }
