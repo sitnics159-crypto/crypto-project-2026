@@ -1,0 +1,11 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { normalizeTokenBalance } from './token-balances.mjs';
+const record = (value, decimals = '18') => ({value, token: {type:'ERC-20', address_hash:'0x'+'a'.repeat(40), symbol:'TEST', decimals}});
+test('exact large balance', () => assert.equal(normalizeTokenBalance(record('123456789012345678901234567890')).amount,'123456789012.34567890123456789'));
+test('zero balance', () => assert.equal(normalizeTokenBalance(record('0')).amount,'0'));
+test('smallest unit', () => assert.equal(normalizeTokenBalance(record('1')).amount,'0.000000000000000001'));
+test('zero decimals', () => assert.equal(normalizeTokenBalance(record('42','0')).amount,'42'));
+test('missing and malformed values remain unknown', () => { for(const value of [null,undefined,'','-1','1.5',42]) assert.equal(normalizeTokenBalance(record(value)).amount,null); });
+test('invalid decimals remain unknown', () => { for(const d of [null,'256','-1','1.5']) assert.equal(normalizeTokenBalance(record('1',d)).amount,null); });
+test('invalid contract and non ERC-20 rejected', () => { const r=record('1'); r.token.address_hash='invalid'; assert.equal(normalizeTokenBalance(r),null); r.token.address_hash='0x'+'a'.repeat(40); r.token.type='ERC-721'; assert.equal(normalizeTokenBalance(r),null); });
