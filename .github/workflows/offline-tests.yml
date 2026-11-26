@@ -44,5 +44,6 @@ jobs:
       - name: Run deterministic tests without external network
         run: |
           node tests/financial-validation.mjs
+          node tests/blockscout-sepolia-browser.mjs
           node tests/offline-regression.cjs
           node tests/accessibility-regression.cjs
