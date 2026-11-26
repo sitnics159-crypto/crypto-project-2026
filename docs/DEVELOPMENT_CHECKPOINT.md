@@ -1,5 +1,13 @@
 # Development Checkpoint
 
+## Verified checkpoint — 2026-11-26
+
+- Published baseline: [`ed0613b195e0efbc88fb0f994f747527c85aa720`](https://github.com/sitnics159-crypto/crypto-project-2026/commit/ed0613b195e0efbc88fb0f994f747527c85aa720). [Validate static site](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45779285428), [Live API integration smoke test](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45779285514), [Deploy static content to Pages](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45779285503), [Deterministic offline tests](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45779285435) succeeded on this commit.
+- [PR #89](https://github.com/sitnics159-crypto/crypto-project-2026/pull/89) published the lookup data notice and referrer policy. The live site displayed the notice and opened a known Sepolia transaction and address. [PR #91](https://github.com/sitnics159-crypto/crypto-project-2026/pull/91) made CSV export unavailable while a changed transfer filter loads. The offline suite exercises the transition, and the live API check verifies export.
+- [PR #87](https://github.com/sitnics159-crypto/crypto-project-2026/pull/87) recorded the launch criteria, and [PR #90](https://github.com/sitnics159-crypto/crypto-project-2026/pull/90) updated the public README. Use the [release checklist](RELEASE_CHECKLIST.md) to assess the selected release candidate.
+- [Draft PR #88](https://github.com/sitnics159-crypto/crypto-project-2026/pull/88) contains the preview without Kraken at `2a91d1d413ed75d420e8ebc6c7415fcaa5733d69`. Its [Chromium run](https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45779886791/job/139772494337) verified Sepolia lookup, the lookup notice, a CSV with 50 outgoing ERC-20 transfers, and requests limited to the local preview and Blockscout.
+- The December 25 target is subject to the selected release scope, provider permissions, and release-day verification. The reserve preview still depends on Blockscout Sepolia.
+
 ## Current checkpoint — 2026-11-25
 
 Verified base on `main`: [`06902b789b026a7c80b3b0115c325c90808d4fa2`](https://github.com/sitnics159-crypto/crypto-project-2026/commit/06902b789b026a7c80b3b0115c325c90808d4fa2). The historical snapshots below are retained for context.
