@@ -104,7 +104,7 @@ jobs:
               assert.match(lines[0], /amount_raw/);
               assert.ok(lines.length - 1 >= await rows.count());
               for (const line of lines.slice(1)) {
-                const [, from, to] = line.match(/^[^,]+,[^,]+,ERC-20,(0x[\da-f]{40}),(0x[\da-f]{40}),/i) || [];
+                const [, from, to] = line.match(/^"[^"]+","[^"]+","ERC-20","(0x[\da-f]{40})","(0x[\da-f]{40})",/i) || [];
                 assert.equal(from?.toLowerCase(), address.toLowerCase());
                 assert.ok(to && to.toLowerCase() !== address.toLowerCase());
               }
