@@ -10,6 +10,7 @@ const address = '0x' + 'b'.repeat(40);
 const sender = '0x' + 'c'.repeat(40);
 const token = '0x' + 'd'.repeat(40);
 const key = 'mock-server-key';
+const secondHash = '0x' + 'e'.repeat(64);
 const addresses = '/addresses/' + address;
 const paths = new Set();
 const transfer = {
@@ -21,10 +22,12 @@ const mocks = new Map([
   ['/transactions/' + hash, { hash, status: 'ok', block_number: 100, fee: { value: '21000000000000' } }],
   [addresses, { hash: address, coin_balance: '1000000000000000000' }],
   [addresses + '/transactions', { items: [{ hash, status: 'ok', block_number: 100 }], next_page_params: null }],
-  [addresses + '/token-transfers', { items: [transfer], next_page_params: null }],
+  [addresses + '/token-transfers', { items: [transfer], next_page_params: { block_number: 100, index: 0, items_count: 1 } }],
   ['/tokens/' + token, { decimals: '6' }]
 ]);
+let time = 0;
 const handle = createBlockscoutHandler({
+  now: () => time,
   apiKey: key,
   fetchUpstream: async url => {
     assert.equal(url.origin, 'https://api.blockscout.com');
@@ -32,6 +35,13 @@ const handle = createBlockscoutHandler({
     const path = url.pathname.replace(/^\/11155111\/api\/v2/, '');
     assert.ok(mocks.has(path), 'Unexpected upstream route: ' + path);
     paths.add(path);
+    if (path.endsWith('/token-transfers') && url.searchParams.has('block_number')) {
+      assert.equal(url.searchParams.get('block_number'), '100');
+      assert.equal(url.searchParams.get('index'), '0');
+      assert.equal(url.searchParams.get('items_count'), '1');
+      assert.equal(url.searchParams.get('type'), 'ERC-20');
+      return Response.json({ items: [{ ...transfer, transaction_hash: secondHash }], next_page_params: null });
+    }
     return Response.json(mocks.get(path));
   }
 });
@@ -77,15 +87,18 @@ try {
   assert.equal(await page.locator('#a-hash').innerText(), address);
   const row = page.locator('#address-token-transfers .token-transfer');
   await row.getByText(/1\.234567 TEST/).waitFor();
+  time = 1000;
+  await page.locator('#token-load-more').click();
+  await page.waitForFunction(() => document.querySelectorAll('#address-token-transfers .token-transfer').length === 2);
   const [download] = await Promise.all([page.waitForEvent('download'), page.locator('#token-export').click()]);
   const csv = readFileSync(await download.path(), 'utf8');
   assert.match(csv, /"1\.234567","1234567","6"/);
-  assert.ok(csv.includes(hash));
+  assert.ok(csv.includes(hash) && csv.includes(secondHash));
   assert.equal(paths.size, mocks.size);
-  assert.equal(bridgeRequests.length, mocks.size);
+  assert.equal(bridgeRequests.length, mocks.size + 1);
   assert.ok(bridgeRequests.every(url => !url.searchParams.has('apikey')));
   assert.deepEqual(pageErrors, []);
-  console.log('Mocked browser check passed: transaction, address, token decimals and CSV through five server routes.');
+  console.log('Mocked browser check passed: transaction, address, token decimals, pagination and CSV through five server routes.');
 } finally {
   await browser.close();
 }
