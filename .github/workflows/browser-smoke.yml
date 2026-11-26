@@ -92,8 +92,9 @@ jobs:
               assert.equal(outgoingResponse.status(), 200);
               await page.waitForFunction(() =>
                 document.querySelector('[data-token-filter="outgoing"]').getAttribute('aria-pressed') === 'true' &&
-                !document.querySelector('#token-export').disabled
+                !tokenTransferLoading && !document.querySelector('#token-export').disabled
               );
+              await rows.first().waitFor({ timeout: 25000 });
               const [download] = await Promise.all([
                 page.waitForEvent('download'),
                 page.locator('#token-export').click()
