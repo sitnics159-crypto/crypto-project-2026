@@ -1,0 +1,101 @@
+import assert from 'node:assert/strict';
+
+const key = process.env.BLOCKSCOUT_API_KEY?.trim();
+if (!key) {
+  console.error('Set BLOCKSCOUT_API_KEY in the local environment before running this check.');
+  process.exit(2);
+}
+
+const api = 'https://api.blockscout.com/11155111/api/v2';
+const hash = '0x616c86b82eaa5485aa04e9773bd281bbc8fd9cd6b050efcc2f864bed50707204';
+const address = '0xd482cCc8EC97e9cA7a365F2403bf7f228aD149A0';
+const token = '0x50B1eF6e0fe05a32F3E63F02f3c0151BD9004C7c';
+const addressPath = '/addresses/' + address;
+
+async function get(label, path, params = {}) {
+  const url = new URL(api + path);
+  for (const [name, value] of Object.entries(params)) {
+    if (name.toLowerCase() === 'apikey' || value == null) continue;
+    if (!['string', 'number', 'boolean'].includes(typeof value)) {
+      throw new Error(label + ': unexpected pagination parameter type');
+    }
+    url.searchParams.set(name, String(value));
+  }
+  url.searchParams.set('apikey', key);
+
+  let response;
+  try {
+    response = await fetch(url, { redirect: 'error', signal: AbortSignal.timeout(15000) });
+  } catch {
+    throw new Error(label + ': request failed or timed out');
+  }
+  if (!response.ok) throw new Error(label + ': HTTP ' + response.status);
+  try {
+    return await response.json();
+  } catch {
+    throw new Error(label + ': invalid JSON response');
+  }
+}
+
+function transferId(item) {
+  const hash = item?.transaction_hash;
+  const index = item?.log_index;
+  assert.ok(typeof hash === 'string' && /^0x[\da-f]{64}$/i.test(hash),
+    'Expected a transfer transaction hash');
+  assert.ok((Number.isSafeInteger(index) && index >= 0) ||
+    (typeof index === 'string' && /^\d+$/.test(index)), 'Expected a transfer log index');
+  return hash.toLowerCase() + ':' + index;
+}
+
+try {
+  const transaction = await get('transaction', '/transactions/' + hash);
+  assert.ok(transaction?.hash?.toLowerCase() === hash, 'Expected the requested transaction');
+  assert.ok(transaction.fee != null || (transaction.gas_used != null && transaction.gas_price != null),
+    'Expected transaction fee or gas fields');
+
+  const overview = await get('address', addressPath);
+  assert.ok(overview?.hash?.toLowerCase() === address.toLowerCase(), 'Expected the requested address');
+  assert.ok(Object.hasOwn(overview, 'coin_balance'), 'Expected the address balance field');
+
+  const history = await get('address transactions', addressPath + '/transactions');
+  assert.ok(Array.isArray(history?.items) && history.items.length > 0, 'Expected address transaction history');
+
+  const transferPath = addressPath + '/token-transfers';
+  const transfers = await get('ERC-20 transfers', transferPath, { type: 'ERC-20' });
+  assert.ok(Array.isArray(transfers?.items) && transfers.items.length > 0, 'Expected ERC-20 transfers');
+
+  const firstPageIds = new Set(transfers.items.map(transferId));
+
+  const outgoing = await get('outgoing ERC-20 transfers', transferPath, { type: 'ERC-20', filter: 'from' });
+  assert.ok(Array.isArray(outgoing?.items) && outgoing.items.length > 0, 'Expected outgoing transfers');
+  assert.ok(outgoing.items.every(item => item.from?.hash?.toLowerCase() === address.toLowerCase()),
+    'Expected the selected address as the sender of every filtered transfer');
+
+  for (const item of outgoing.items) {
+    transferId(item);
+    assert.equal(item.token_type, 'ERC-20', 'Expected ERC-20 token type for CSV');
+    assert.ok(typeof item.to?.hash === 'string' && /^0x[\da-f]{40}$/i.test(item.to.hash),
+      'Expected the transfer recipient for CSV');
+    const rawAmount = item.total?.value;
+    assert.ok(typeof rawAmount === 'string' && /^\d+$/.test(rawAmount),
+      'Expected an exact decimal-string amount for CSV');
+  }
+
+  if (transfers.next_page_params) {
+    const next = await get('next ERC-20 page', transferPath, { ...transfers.next_page_params, type: 'ERC-20' });
+    assert.ok(Array.isArray(next?.items), 'Expected a list on the next page');
+    assert.ok(next.items.some(item => !firstPageIds.has(transferId(item))),
+      'Expected at least one transfer different from the first page');
+    console.log('ERC-20 pagination returned new transfers.');
+  } else {
+    console.log('ERC-20 pagination unverified: no cursor returned for the sample address.');
+  }
+
+  const metadata = await get('token metadata', '/tokens/' + token);
+  assert.ok(metadata?.decimals != null, 'Expected token decimals');
+  console.log('Verified Sepolia transaction, fee fields, address, history, outgoing transfers, and token decimals.');
+  console.log('Address risk flag field present:', Object.hasOwn(overview, 'is_scam'));
+} catch (error) {
+  console.error(error instanceof Error ? error.message : 'Blockscout check failed.');
+  process.exitCode = 1;
+}
