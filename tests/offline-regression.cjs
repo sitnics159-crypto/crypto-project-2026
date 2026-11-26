@@ -835,14 +835,15 @@ const path = require('node:path');
                 }
               : { items: [], next_page_params: null };
           const directionFilter = new URL(target).searchParams.get('filter');
-          if (directionFilter === 'to') payload = {
-            items: [{
-              transaction_hash: '0x' + '1'.repeat(64), log_index: 0, token_type: 'ERC-20',
-              from: { hash: '0x' + 'a'.repeat(40) }, to: { hash: address },
-              token: { name: 'USD, "Coin"', symbol: 'USDC', address_hash: '0x' + 'c'.repeat(40) },
-              total: { value: '16825800', decimals: '6' }, block_number: 100, timestamp: '2026-11-24T09:00:00.000Z'
-            }], next_page_params: null
-          };
+          if (directionFilter === 'to') {
+            return new Promise(resolve => {
+              window.__finishIncomingTransferResponse = () => resolve(new Response(JSON.stringify({
+                items: [payload.items[0]], next_page_params: null
+              }), {
+                status: 200, headers: { 'Content-Type': 'application/json' }
+              }));
+            });
+          }
           if (directionFilter === 'from') payload = {
             items: [{
               transaction_hash: '0x' + '2'.repeat(64), log_index: 1, token_type: 'ERC-20',
@@ -933,6 +934,12 @@ const path = require('node:path');
     }
 
     await page.locator('[data-token-filter="incoming"]').click();
+    await page.waitForFunction(() => typeof window.__finishIncomingTransferResponse === 'function');
+    if (!(await page.locator('#token-export').isDisabled()) ||
+        (await page.locator('#token-export-status').innerText()).trim() !== '') {
+      throw new Error('CSV export must be disabled and clear its prior status while a new filter loads');
+    }
+    await page.evaluate(() => window.__finishIncomingTransferResponse());
     await page.waitForFunction(() => !tokenTransferLoading && tokenTransferFilter === 'incoming' && tokenTransferItems.length === 1);
     if (!(await page.evaluate(() => window.__shareableAddressFetches.some(url => new URL(url).searchParams.get('filter') === 'to')))) {
       throw new Error('Incoming CSV filter did not issue Blockscout filter=to request');
