@@ -22,6 +22,10 @@ replaceOnce(/let latestEthUsdPrice=null,lastTransactionFeeWei=null;[\s\S]*?(?=fu
 replaceOnce(/lastTransactionFeeWei=fee;put\('#r-fee',fee===null\?'Не удалось определить':formatFeeDisplay\(fee\)\);/, "put('#r-fee',fee===null?'Не удалось определить':weiToEth(fee,18));");
 replaceOnce(/const MARKET_API=[\s\S]*?(?=restoreShareableLookup\(\);\s*<\/script>)/, '');
 
+if (html.includes('<strong>Поисковые данные:</strong>')) {
+  replaceOnce(/ Котировки загружаются из Kraken отдельными запросами без поискового хеша или адреса\.(?=<\/p>)/, '');
+}
+
 const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
 if (!script || /kraken|latestEthUsdPrice|formatFeeDisplay|market-refresh/i.test(html)) {
   throw new Error('The generated HTML still has market dependencies or is missing its script.');
