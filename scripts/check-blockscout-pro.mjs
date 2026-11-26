@@ -37,6 +37,16 @@ async function get(label, path, params = {}) {
   }
 }
 
+function transferId(item) {
+  const hash = item?.transaction_hash;
+  const index = item?.log_index;
+  assert.ok(typeof hash === 'string' && /^0x[\da-f]{64}$/i.test(hash),
+    'Expected a transfer transaction hash');
+  assert.ok((Number.isSafeInteger(index) && index >= 0) ||
+    (typeof index === 'string' && /^\d+$/.test(index)), 'Expected a transfer log index');
+  return hash.toLowerCase() + ':' + index;
+}
+
 try {
   const transaction = await get('transaction', '/transactions/' + hash);
   assert.ok(transaction?.hash?.toLowerCase() === hash, 'Expected the requested transaction');
@@ -54,15 +64,29 @@ try {
   const transfers = await get('ERC-20 transfers', transferPath, { type: 'ERC-20' });
   assert.ok(Array.isArray(transfers?.items) && transfers.items.length > 0, 'Expected ERC-20 transfers');
 
+  const firstPageIds = new Set(transfers.items.map(transferId));
+
   const outgoing = await get('outgoing ERC-20 transfers', transferPath, { type: 'ERC-20', filter: 'from' });
   assert.ok(Array.isArray(outgoing?.items) && outgoing.items.length > 0, 'Expected outgoing transfers');
   assert.ok(outgoing.items.every(item => item.from?.hash?.toLowerCase() === address.toLowerCase()),
     'Expected the selected address as the sender of every filtered transfer');
 
+  for (const item of outgoing.items) {
+    transferId(item);
+    assert.equal(item.token_type, 'ERC-20', 'Expected ERC-20 token type for CSV');
+    assert.ok(typeof item.to?.hash === 'string' && /^0x[\da-f]{40}$/i.test(item.to.hash),
+      'Expected the transfer recipient for CSV');
+    const rawAmount = item.total?.value;
+    assert.ok(typeof rawAmount === 'string' && /^\d+$/.test(rawAmount),
+      'Expected an exact decimal-string amount for CSV');
+  }
+
   if (transfers.next_page_params) {
     const next = await get('next ERC-20 page', transferPath, { ...transfers.next_page_params, type: 'ERC-20' });
     assert.ok(Array.isArray(next?.items), 'Expected a list on the next page');
-    console.log('ERC-20 pagination verified.');
+    assert.ok(next.items.some(item => !firstPageIds.has(transferId(item))),
+      'Expected at least one transfer different from the first page');
+    console.log('ERC-20 pagination returned new transfers.');
   } else {
     console.log('ERC-20 pagination unverified: no cursor returned for the sample address.');
   }
