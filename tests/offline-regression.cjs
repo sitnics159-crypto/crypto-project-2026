@@ -835,15 +835,14 @@ const path = require('node:path');
                 }
               : { items: [], next_page_params: null };
           const directionFilter = new URL(target).searchParams.get('filter');
-          if (directionFilter === 'to') {
-            return new Promise(resolve => {
-              window.__finishIncomingTransferResponse = () => resolve(new Response(JSON.stringify({
-                items: [payload.items[0]], next_page_params: null
-              }), {
-                status: 200, headers: { 'Content-Type': 'application/json' }
-              }));
-            });
-          }
+          if (directionFilter === 'to') payload = {
+            items: [{
+              transaction_hash: '0x' + '1'.repeat(64), log_index: 0, token_type: 'ERC-20',
+              from: { hash: '0x' + 'a'.repeat(40) }, to: { hash: address },
+              token: { name: 'USD, "Coin"', symbol: 'USDC', address_hash: '0x' + 'c'.repeat(40) },
+              total: { value: '16825800', decimals: '6' }, block_number: 100, timestamp: '2026-11-24T09:00:00.000Z'
+            }], next_page_params: null
+          };
           if (directionFilter === 'from') payload = {
             items: [{
               transaction_hash: '0x' + '2'.repeat(64), log_index: 1, token_type: 'ERC-20',
@@ -852,10 +851,16 @@ const path = require('node:path');
               total: { value: '7000000000000000', decimals: '18' }, block_number: 101, timestamp: '2026-11-24T09:01:00.000Z'
             }], next_page_params: null
           };
-          return Promise.resolve(new Response(JSON.stringify(payload), {
+          const response = new Response(JSON.stringify(payload), {
             status: 200,
             headers: { 'Content-Type': 'application/json' }
-          }));
+          });
+          if (directionFilter === 'to') {
+            return new Promise(resolve => {
+              window.__finishIncomingTransferResponse = () => resolve(response);
+            });
+          }
+          return Promise.resolve(response);
         }
         return originalFetch(url, options);
       };
