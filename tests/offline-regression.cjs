@@ -851,10 +851,16 @@ const path = require('node:path');
               total: { value: '7000000000000000', decimals: '18' }, block_number: 101, timestamp: '2026-11-24T09:01:00.000Z'
             }], next_page_params: null
           };
-          return Promise.resolve(new Response(JSON.stringify(payload), {
+          const response = new Response(JSON.stringify(payload), {
             status: 200,
             headers: { 'Content-Type': 'application/json' }
-          }));
+          });
+          if (directionFilter === 'to') {
+            return new Promise(resolve => {
+              window.__finishIncomingTransferResponse = () => resolve(response);
+            });
+          }
+          return Promise.resolve(response);
         }
         return originalFetch(url, options);
       };
@@ -933,6 +939,12 @@ const path = require('node:path');
     }
 
     await page.locator('[data-token-filter="incoming"]').click();
+    await page.waitForFunction(() => typeof window.__finishIncomingTransferResponse === 'function');
+    if (!(await page.locator('#token-export').isDisabled()) ||
+        (await page.locator('#token-export-status').innerText()).trim() !== '') {
+      throw new Error('CSV export must be disabled and clear its prior status while a new filter loads');
+    }
+    await page.evaluate(() => window.__finishIncomingTransferResponse());
     await page.waitForFunction(() => !tokenTransferLoading && tokenTransferFilter === 'incoming' && tokenTransferItems.length === 1);
     if (!(await page.evaluate(() => window.__shareableAddressFetches.some(url => new URL(url).searchParams.get('filter') === 'to')))) {
       throw new Error('Incoming CSV filter did not issue Blockscout filter=to request');
