@@ -8,7 +8,7 @@ const request = (path, method = 'GET') => new Request('https://preview.example' 
 
 test('routes five Sepolia operations to the fixed provider and authenticates upstream', async () => {
   const paths = ['/transactions/' + hash, '/addresses/' + address, '/addresses/' + address + '/transactions?index=1',
-    '/addresses/' + address + '/token-transfers?filter=from&block_number=100', '/tokens/' + address];
+    '/addresses/' + address + '/token-transfers?type=ERC-20&filter=from&block_number=100', '/tokens/' + address];
   const calls = [];
   const handle = createBlockscoutHandler({ apiKey: 'mock-key', fetchUpstream: async (url, options) => {
     calls.push(url);
@@ -36,6 +36,8 @@ test('rejects invalid methods, paths and query parameters before reaching the pr
   assert.equal((await handle(request('/tokens/' + address + '?apikey=client'))).status, 400);
   assert.equal((await handle(request('/addresses/' + address + '/token-transfers?filter=wrong'))).status, 400);
   assert.equal((await handle(request('/addresses/' + address + '/transactions?index=1&index=2'))).status, 400);
+  assert.equal((await handle(request('/addresses/' + address + '/token-transfers?type=ERC-721'))).status, 400);
+  assert.equal((await handle(request('/addresses/' + address + '/token-transfers?type=ERC-20&type=ERC-20'))).status, 400);
   assert.equal(calls, 0);
 });
 

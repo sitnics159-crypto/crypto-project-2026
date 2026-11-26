@@ -4,7 +4,7 @@ const routes = [
   { pattern: new RegExp('^/transactions/0x[0-9a-fA-F]{64}$'), query: [] },
   { pattern: new RegExp('^/addresses/' + address + '$'), query: [] },
   { pattern: new RegExp('^/addresses/' + address + '/transactions$'), query: ['block_number', 'index', 'items_count'] },
-  { pattern: new RegExp('^/addresses/' + address + '/token-transfers$'), query: ['filter', 'block_number', 'index', 'log_index', 'items_count'] },
+  { pattern: new RegExp('^/addresses/' + address + '/token-transfers$'), query: ['type', 'filter', 'block_number', 'index', 'log_index', 'items_count'] },
   { pattern: new RegExp('^/tokens/' + address + '$'), query: [] }
 ];
 
@@ -21,15 +21,16 @@ export function createBlockscoutHandler({ apiKey, fetchUpstream = fetch, now = D
     const route = routes.find(entry => entry.pattern.test(input.pathname));
     if (!route) return failure(404, 'Unknown Sepolia operation');
     const upstream = new URL(upstreamBase + input.pathname);
-    if (input.pathname.endsWith('/token-transfers')) upstream.searchParams.set('type', 'ERC-20');
 
     for (const [name, value] of input.searchParams) {
       if (upstream.searchParams.has(name) || !route.query.includes(name) ||
-          !(name === 'filter' ? /^(from|to)$/.test(value) : /^\d{1,20}$/.test(value))) {
+          !(name === 'type' ? value === 'ERC-20' : name === 'filter' ? /^(from|to)$/.test(value) : /^\d{1,20}$/.test(value))) {
         return failure(400, 'Invalid request parameter');
       }
       upstream.searchParams.set(name, value);
     }
+
+    if (input.pathname.endsWith('/token-transfers')) upstream.searchParams.set('type', 'ERC-20');
 
     if (!apiKey) return failure(503, 'Data service is not configured');
     const time = now();
