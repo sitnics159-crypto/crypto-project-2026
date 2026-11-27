@@ -28,6 +28,28 @@ test('routes five Sepolia operations to the fixed provider and authenticates ups
   assert.equal(calls[3].searchParams.get('filter'), 'from');
 });
 
+test('forwards token balances to Sepolia without accepting client query parameters', async () => {
+  const path = '/addresses/' + address + '/token-balances';
+  const balances = [{ value: '123456789012345678901234567890', token: { type: 'ERC-20', decimals: '18' } }];
+  let calls = 0;
+  const handle = createBlockscoutHandler({ apiKey: 'mock-key', fetchUpstream: async url => {
+    calls++;
+    assert.equal(url.origin, 'https://api.blockscout.com');
+    assert.equal(url.pathname, '/11155111/api/v2' + path);
+    assert.deepEqual([...url.searchParams], [['apikey', 'mock-key']]);
+    return Response.json(balances);
+  } });
+  for (const query of ['apikey=client', 'type=ERC-20', 'index=1']) {
+    assert.equal((await handle(request(path + '?' + query))).status, 400);
+  }
+  assert.equal(calls, 0);
+  const response = await handle(request(path));
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('cache-control'), 'no-store');
+  assert.deepEqual(await response.json(), balances);
+  assert.equal(calls, 1);
+});
+
 test('rejects invalid methods, paths and query parameters before reaching the provider', async () => {
   let calls = 0;
   const handle = createBlockscoutHandler({ apiKey: 'mock-key', fetchUpstream: async () => { calls++; } });

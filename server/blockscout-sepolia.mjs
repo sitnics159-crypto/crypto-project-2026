@@ -5,6 +5,7 @@ const routes = [
   { pattern: new RegExp('^/addresses/' + address + '$'), query: [] },
   { pattern: new RegExp('^/addresses/' + address + '/transactions$'), query: ['block_number', 'index', 'items_count'] },
   { pattern: new RegExp('^/addresses/' + address + '/token-transfers$'), query: ['type', 'filter', 'block_number', 'index', 'log_index', 'items_count'] },
+  { pattern: new RegExp('^/addresses/' + address + '/token-balances$'), query: [] },
   { pattern: new RegExp('^/tokens/' + address + '$'), query: [] }
 ];
 
