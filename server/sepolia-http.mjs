@@ -6,6 +6,7 @@ import { createBlockscoutHandler } from './blockscout-sepolia.mjs';
 
 export function createSepoliaHttpServer({ preview, ...options } = {}) {
   const handle = createBlockscoutHandler(options);
+  const modules = new Map([['/token-balances.mjs', preview?.balanceModule], ['/insight-report.mjs', preview?.insightReport], ['/insight-report-view.mjs', preview?.insightReportView]]);
   return createServer(async (incoming, outgoing) => {
     if (incoming.method !== 'GET') {
       outgoing.writeHead(405, { allow: 'GET', 'cache-control': 'no-store' }).end();
@@ -13,13 +14,13 @@ export function createSepoliaHttpServer({ preview, ...options } = {}) {
     }
     const target = incoming.url;
     const path = target?.split('?', 1)[0];
-    if (preview && (path === '/' || path === '/index.html' || path === '/token-balances.mjs')) {
-      const isModule = path === '/token-balances.mjs';
+    if (preview && (path === '/' || path === '/index.html' || modules.get(path) !== undefined)) {
+      const isModule = modules.has(path);
       outgoing.writeHead(200, {
         'content-type': isModule ? 'text/javascript; charset=utf-8' : 'text/html; charset=utf-8',
         'cache-control': 'no-store',
         'x-content-type-options': 'nosniff'
-      }).end(isModule ? preview.balanceModule : preview.indexHtml);
+      }).end(isModule ? modules.get(path) : preview.indexHtml);
       return;
     }
     if (!target?.startsWith('/api/sepolia/') || target.includes('\\')) {
@@ -47,11 +48,13 @@ export function createSepoliaHttpServer({ preview, ...options } = {}) {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const port = Number(process.env.PORT ?? 8787);
-  const host = process.env.HOST ?? '127.0.0.1';
+  const host = process.env.HOST ?? (process.env.RENDER === 'true' ? '0.0.0.0' : '127.0.0.1');
   const directory = process.env.SEPOLIA_PREVIEW_DIR;
   const preview = directory ? {
     indexHtml: readFileSync(join(directory, 'index.html')),
-    balanceModule: readFileSync(join(directory, 'token-balances.mjs'))
+    balanceModule: readFileSync(join(directory, 'token-balances.mjs')),
+    insightReport: readFileSync(join(directory, 'insight-report.mjs')),
+    insightReportView: readFileSync(join(directory, 'insight-report-view.mjs'))
   } : undefined;
   const server = createSepoliaHttpServer({ apiKey: process.env.BLOCKSCOUT_API_KEY?.trim(), preview });
   server.listen(port, host, () => {
