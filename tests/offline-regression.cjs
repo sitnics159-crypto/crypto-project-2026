@@ -56,7 +56,8 @@ const path = require('node:path');
     // Keep the static CSP hash synchronized with the sole inline application script.
     const sourceHtml = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
     const cspMatch = sourceHtml.match(/<meta http-equiv="Content-Security-Policy" content="([^"]+)">/i);
-    const inlineScripts = [...sourceHtml.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)];
+    const inlineScripts = [...sourceHtml.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)]
+      .filter(match => !/\bsrc=/.test(match[0].split('>')[0]));
     if (!cspMatch || inlineScripts.length !== 1) {
       throw new Error('Expected one inline application script and a meta CSP policy');
     }
@@ -67,6 +68,12 @@ const path = require('node:path');
       return [name, values.join(' ')];
     }));
     const scriptSources = cspDirectives.get('script-src') || '';
+    const moduleHash = 'sha256-' + crypto.createHash('sha256')
+      .update(fs.readFileSync(path.join(__dirname, '..', 'token-balances.mjs'))).digest('base64');
+    if (!sourceHtml.includes('src="./token-balances.mjs" integrity="' + moduleHash + '"') ||
+        scriptSources !== expectedScriptHash + " '" + moduleHash + "'") {
+      throw new Error('CSP and integrity must authorize only the current application scripts');
+    }
     const connectSources = cspDirectives.get('connect-src') || '';
     for (const [directive, expected] of [
       ['default-src', "'none'"], ['base-uri', "'none'"],
@@ -374,6 +381,11 @@ const path = require('node:path');
           if (mode === 'incomplete') {
             return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
           }
+          if (mode === 'mismatched-address') {
+            return Promise.resolve({ ok: true, status: 200, json: async () => ({
+              hash: '0x' + 'b'.repeat(40), coin_balance: '0', is_contract: false
+            }) });
+          }
           const status = mode === 'rate-limit' ? apiErrorFixture.rateLimit.status :
             mode === 'not-found' ? 404 : apiErrorFixture.serverError.status;
           return Promise.resolve({ ok: false, status, json: async () => ({}) });
@@ -392,6 +404,8 @@ const path = require('node:path');
       try {
         const notFound = await run('not-found');
         const incomplete = await run('incomplete');
+        const mismatchedAddress = await run('mismatched-address');
+        if (!addressResult.hidden) throw new Error('Mismatched address response was rendered');
         const rateLimit = await run('rate-limit');
         const serverError = await run('server-error');
         const failedState = {
@@ -417,7 +431,7 @@ const path = require('node:path');
             });
           }
           return new Response(JSON.stringify({
-            hash: address, coin_balance: '0', is_contract: false,
+            hash: '0x' + address.slice(2).toUpperCase(), coin_balance: '0', is_contract: false,
             is_scam: false, has_tokens: false, has_token_transfers: false
           }), { status: 200, headers: { 'Content-Type': 'application/json' } });
         };
@@ -434,7 +448,7 @@ const path = require('node:path');
           loadingHidden: addressLoading.hidden,
           requestCount: recoveryRequests
         };
-        return { notFound, incomplete, rateLimit, serverError, timeout, failedState, recoveredState };
+        return { notFound, incomplete, mismatchedAddress, rateLimit, serverError, timeout, failedState, recoveredState };
       } finally {
         window.fetch = originalFetch;
         window.setTimeout = originalSetTimeout;
@@ -442,6 +456,7 @@ const path = require('node:path');
     }, apiErrorFixture);
     if (!apiErrors.notFound.includes('Адрес не найден в Sepolia') ||
         !apiErrors.incomplete.includes('Источник вернул неполные данные') ||
+        !apiErrors.mismatchedAddress.includes('Источник вернул неполные данные') ||
         !apiErrors.rateLimit.includes(apiErrorFixture.rateLimit.expected) ||
         !apiErrors.serverError.includes(apiErrorFixture.serverError.expected) ||
         !apiErrors.timeout.includes(apiErrorFixture.timeout.expected) ||
@@ -455,6 +470,86 @@ const path = require('node:path');
       throw new Error('Address lookup API failure/recovery regression: ' + JSON.stringify(apiErrors));
     }
     console.log('Address lookup 404, incomplete payload, timeout, HTTP 429, and HTTP 5xx fixtures passed');
+    const loadBalances = page.locator('#token-balances-load');
+    const balanceStatus = page.locator('#token-balances-status');
+    await page.evaluate(() => {
+      const originalFetch = window.fetch;
+      let attempts = 0;
+      window.fetch = async (url, options) => {
+        if (!String(url).endsWith('/token-balances')) return originalFetch(url, options);
+        if (++attempts === 1) return new Response('{}', { status: 503 });
+        window.fetch = originalFetch;
+        return new Response(JSON.stringify([{
+          value: '123456789012345678901234567890',
+          token: { type: 'ERC-20', address_hash: '0x' + 'b'.repeat(40), decimals: '18', symbol: '<TEST>' }
+        }]));
+      };
+    });
+    await loadBalances.click();
+    await balanceStatus.filter({ hasText: 'Попробуйте ещё раз' }).waitFor();
+    if (!(await page.locator('#address-result').isVisible())) {
+      throw new Error('Balance API failure hid the address overview');
+    }
+    await loadBalances.click();
+    await page.locator('#token-balances-list li').filter({ hasText: '<TEST>' })
+      .filter({ hasText: '123456789012.34567890123456789' }).waitFor();
+    // Allow the old fetch to resolve after cancellation to exercise the stale response guard.
+    const balanceRace = await page.evaluate(async () => {
+      const originalFetch = window.fetch;
+      const nextAddress = '0x' + 'c'.repeat(40);
+      const balanceButton = document.querySelector('#token-balances-load');
+      const balanceList = document.querySelector('#token-balances-list');
+      const balanceStatus = document.querySelector('#token-balances-status');
+      const waitFor = async condition => {
+        for (let attempt = 0; attempt < 100; attempt++) {
+          if (condition()) return;
+          await new Promise(resolve => setTimeout(resolve, 5));
+        }
+        throw new Error('Timed out waiting for the balance lookup race');
+      };
+      const makeBalance = symbol => [{
+        value: '42', token: { type: 'ERC-20', address_hash: '0x' + 'b'.repeat(40), decimals: '0', symbol }
+      }];
+      let oldSignal, resolveOld;
+      try {
+        window.fetch = async (url, options) => {
+          const path = new URL(String(url)).pathname;
+          if (path.endsWith('/token-balances')) {
+            if (path.includes(nextAddress)) return Response.json(makeBalance('CURRENT'));
+            oldSignal = options.signal;
+            return new Promise(resolve => { resolveOld = resolve; });
+          }
+          if (path === '/api/v2/addresses/' + nextAddress) {
+            return Response.json({ hash: nextAddress, coin_balance: '0' });
+          }
+          if (path.startsWith('/api/v2/addresses/' + nextAddress + '/')) {
+            return Response.json({ items: [], next_page_params: null });
+          }
+          return originalFetch(url, options);
+        };
+        balanceButton.click();
+        await waitFor(() => !!resolveOld);
+        addressInput.value = nextAddress;
+        addressForm.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+        await waitFor(() => !addressResult.hidden && document.querySelector('#a-hash').textContent === nextAddress);
+        const reset = balanceList.textContent === '' && balanceStatus.textContent === '' && !balanceButton.disabled;
+        balanceButton.click();
+        await waitFor(() => balanceList.textContent.includes('CURRENT') && !balanceButton.disabled);
+        resolveOld(Response.json(makeBalance('STALE')));
+        await new Promise(resolve => setTimeout(resolve, 0));
+        return {
+          aborted: oldSignal.aborted,
+          reset,
+          currentOnly: balanceList.textContent.includes('CURRENT') && !balanceList.textContent.includes('STALE')
+        };
+      } finally {
+        window.fetch = originalFetch;
+      }
+    });
+    if (!balanceRace.aborted || !balanceRace.reset || !balanceRace.currentOnly) {
+      throw new Error('Switching addresses left stale balance state: ' + JSON.stringify(balanceRace));
+    }
+    console.log('ERC-20 balance cancellation and stale response checks passed');
     // A secondary activity endpoint failure must not hide a successfully resolved address or the other activity section.
     const partialAddressRegression = await page.evaluate(async () => {
       const originalFetch = window.fetch;
@@ -545,7 +640,10 @@ const path = require('node:path');
       try {
         for (const item of fixture.transactions) {
           window.fetch = async () => ({
-            ok: true, status: 200, json: async () => item.data
+            ok: true, status: 200, json: async () => ({
+              ...item.data,
+              hash: '0x' + item.data.hash.slice(2).toUpperCase()
+            })
           });
           await submit(fixture.hash);
           const actual = {
@@ -577,7 +675,13 @@ const path = require('node:path');
           { name: 'not-found', status: 404, expected: fixture.errors.notFound },
           { name: 'rate-limit', status: 429, expected: fixture.errors.rateLimit },
           { name: 'server', status: 503, expected: fixture.errors.server },
-          { name: 'incomplete', status: 200, body: {}, expected: fixture.errors.incomplete }
+          { name: 'incomplete', status: 200, body: {}, expected: fixture.errors.incomplete },
+          {
+            name: 'mismatched-hash',
+            status: 200,
+            body: { ...fixture.transactions[0].data, hash: fixture.hash.slice(0, -1) + (fixture.hash.endsWith('0') ? '1' : '0') },
+            expected: fixture.errors.incomplete
+          }
         ];
         const errors = {};
         for (const item of errorCases) {

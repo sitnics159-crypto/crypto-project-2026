@@ -43,6 +43,7 @@ jobs:
           exit 1
       - name: Run deterministic tests without external network
         run: |
+          node --test tests/blockscout-pro-probe.test.mjs
           node tests/financial-validation.mjs
           node tests/blockscout-sepolia-browser.mjs
           node tests/offline-regression.cjs

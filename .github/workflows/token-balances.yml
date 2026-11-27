@@ -1,0 +1,15 @@
+name: ERC-20 balance tests
+on:
+  pull_request:
+  push:
+    branches:
+      - feat/erc20-balances-2026-11-26
+permissions:
+  contents: read
+jobs:
+  token-balances:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - run: node --test token-balances.test.mjs
