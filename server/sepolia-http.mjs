@@ -14,6 +14,14 @@ export function createSepoliaHttpServer({ preview, ...options } = {}) {
     }
     const target = incoming.url;
     const path = target?.split('?', 1)[0];
+    if (target === '/healthz') {
+      outgoing.writeHead(200, {
+        'content-type': 'application/json; charset=utf-8',
+        'cache-control': 'no-store',
+        'x-content-type-options': 'nosniff'
+      }).end(JSON.stringify({ status: 'ok' }));
+      return;
+    }
     if (preview && (path === '/' || path === '/index.html' || modules.get(path) !== undefined)) {
       const isModule = modules.has(path);
       outgoing.writeHead(200, {
