@@ -154,3 +154,18 @@ test('returns a numeric retry delay for provider rate limits without leaking hea
     assert.doesNotMatch(await response.text(), /mock-key|private details/);
   }
 });
+
+test('health endpoint reports liveness without credentials or provider calls', async t => {
+  let calls = 0;
+  const server = createSepoliaHttpServer({ fetchUpstream: async () => { calls++; } });
+  server.listen(0, '127.0.0.1');
+  t.after(() => { server.closeAllConnections(); return new Promise(resolve => server.close(resolve)); });
+  await once(server, 'listening');
+  const url = 'http://127.0.0.1:' + server.address().port + '/healthz';
+  const response = await fetch(url);
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('cache-control'), 'no-store');
+  assert.deepEqual(await response.json(), { status: 'ok' });
+  assert.equal((await fetch(url, { method: 'POST' })).status, 405);
+  assert.equal(calls, 0);
+});
