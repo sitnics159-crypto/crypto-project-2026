@@ -72,3 +72,29 @@ jobs:
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
         with:
           artifact_name: github-pages-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Verify published site files
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+          EXPECTED_DIR: ${{ runner.temp }}/pages-site
+        shell: bash
+        run: |
+          actual_dir="$(mktemp -d)"
+          for attempt in {1..10}; do
+            matched=true
+            for file in index.html token-balances.mjs; do
+              if ! curl --fail --silent --show-error --max-time 15 \
+                -o "$actual_dir/$file" \
+                "${PAGE_URL%/}/$file?verify=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-$attempt" ||
+                ! cmp -s "$EXPECTED_DIR/$file" "$actual_dir/$file"; then
+                echo "Waiting for published $file to match the deployment package (attempt $attempt)."
+                matched=false
+              fi
+            done
+            if [[ "$matched" == true ]]; then
+              echo "Both published files match the deployment package byte for byte."
+              exit 0
+            fi
+            if [[ "$attempt" -lt 10 ]]; then sleep 6; fi
+          done
+          echo "::error::Published site files did not match the deployment package."
+          exit 1
