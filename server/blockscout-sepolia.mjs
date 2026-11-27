@@ -3,11 +3,23 @@ const address = '0x[0-9a-fA-F]{40}';
 const routes = [
   { pattern: new RegExp('^/transactions/0x[0-9a-fA-F]{64}$'), query: [] },
   { pattern: new RegExp('^/addresses/' + address + '$'), query: [] },
-  { pattern: new RegExp('^/addresses/' + address + '/transactions$'), query: ['block_number', 'index', 'items_count'] },
+  { pattern: new RegExp('^/addresses/' + address + '/transactions$'), query: ['block_number', 'index', 'items_count', 'fee', 'hash', 'inserted_at', 'value'] },
   { pattern: new RegExp('^/addresses/' + address + '/token-transfers$'), query: ['type', 'filter', 'block_number', 'index', 'log_index', 'items_count'] },
   { pattern: new RegExp('^/addresses/' + address + '/token-balances$'), query: [] },
   { pattern: new RegExp('^/tokens/' + address + '$'), query: [] }
 ];
+
+function validParameter(name, value) {
+  switch (name) {
+    case 'type': return value === 'ERC-20';
+    case 'filter': return /^(from|to)$/.test(value);
+    case 'hash': return /^0x[0-9a-fA-F]{64}$/.test(value);
+    case 'inserted_at': return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?Z$/.test(value);
+    case 'fee':
+    case 'value': return /^\d{1,78}$/.test(value);
+    default: return /^\d{1,20}$/.test(value);
+  }
+}
 
 function failure(status, message, headers = {}) {
   return Response.json({ message }, { status, headers: { ...headers, 'cache-control': 'no-store' } });
@@ -25,7 +37,7 @@ export function createBlockscoutHandler({ apiKey, fetchUpstream = fetch, now = D
 
     for (const [name, value] of input.searchParams) {
       if (upstream.searchParams.has(name) || !route.query.includes(name) ||
-          !(name === 'type' ? value === 'ERC-20' : name === 'filter' ? /^(from|to)$/.test(value) : /^\d{1,20}$/.test(value))) {
+          !validParameter(name, value)) {
         return failure(400, 'Invalid request parameter');
       }
       upstream.searchParams.set(name, value);
