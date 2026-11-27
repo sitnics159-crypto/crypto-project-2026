@@ -23,7 +23,11 @@ const mocks = new Map([
   [addresses, { hash: address, coin_balance: '1000000000000000000' }],
   [addresses + '/transactions', { items: [{ hash, status: 'ok', block_number: 100 }], next_page_params: null }],
   [addresses + '/token-transfers', { items: [transfer], next_page_params: { block_number: 100, index: 0, items_count: 1 } }],
-  ['/tokens/' + token, { decimals: '6' }]
+  ['/tokens/' + token, { decimals: '6' }],
+  [addresses + '/token-balances', [{
+    value: '123456789012345678901234567890',
+    token: { address_hash: token, type: 'ERC-20', symbol: 'TEST', decimals: '18' }
+  }]]
 ]);
 let time = 0;
 const handle = createBlockscoutHandler({
@@ -52,7 +56,14 @@ const pageHtml = readFileSync(new URL('../index.html', import.meta.url), 'utf8')
 const script = pageHtml.match(/<script>([\s\S]*?)<\/script>/)?.[1];
 assert.ok(script, 'Expected the application script');
 const scriptHash = createHash('sha256').update(script).digest('base64');
-const preview = pageHtml.replace(/script-src 'sha256-[^']+'/, `script-src 'sha256-${scriptHash}'`);
+const balanceModule = readFileSync(new URL('../token-balances.mjs', import.meta.url), 'utf8');
+const digest = content => 'sha256-' + createHash('sha256').update(content).digest('base64');
+const originalModuleHash = digest(balanceModule);
+const previewModule = balanceModule.replace('https://eth-sepolia.blockscout.com/api/v2/', origin + '/preview-api/');
+assert.notEqual(previewModule, balanceModule);
+assert.ok(pageHtml.includes('integrity="' + originalModuleHash + '"'));
+const preview = pageHtml.replace(/script-src 'sha256-[^']+'/, `script-src 'sha256-${scriptHash}'`)
+  .replaceAll(originalModuleHash, digest(previewModule));
 
 const browser = await chromium.launch();
 try {
@@ -63,6 +74,9 @@ try {
   await page.route('**/*', async route => {
     const url = new URL(route.request().url());
     if (url.origin !== origin) return route.abort('blockedbyclient');
+    if (url.pathname === '/token-balances.mjs') {
+      return route.fulfill({ body: previewModule, contentType: 'text/javascript; charset=utf-8' });
+    }
     if (!url.pathname.startsWith('/preview-api/')) {
       return route.fulfill({ body: preview, contentType: 'text/html; charset=utf-8' });
     }
@@ -94,11 +108,18 @@ try {
   const csv = readFileSync(await download.path(), 'utf8');
   assert.match(csv, /"1\.234567","1234567","6"/);
   assert.ok(csv.includes(hash) && csv.includes(secondHash));
+  time = 2000;
+  await page.getByRole('button', { name: 'Загрузить балансы' }).click();
+  const balance = page.locator('#token-balances-list li');
+  await balance.waitFor();
+  assert.equal(await balance.innerText(), 'TEST · ' + token + ' · 123456789012.34567890123456789');
+  assert.ok(bridgeRequests.some(url => url.pathname === '/preview-api' + addresses + '/token-balances'));
   assert.equal(paths.size, mocks.size);
   assert.equal(bridgeRequests.length, mocks.size + 1);
-  assert.ok(bridgeRequests.every(url => !url.searchParams.has('apikey')));
+  assert.ok(bridgeRequests.every(url => !url.searchParams.has('apikey') && !url.href.includes(key)));
+  assert.ok(!(await page.content()).includes(key));
   assert.deepEqual(pageErrors, []);
-  console.log('Mocked browser check passed: transaction, address, token decimals, pagination and CSV through five server routes.');
+  console.log('Mocked browser check passed: transaction, address, token decimals, pagination, CSV and exact balances through six server routes.');
 } finally {
   await browser.close();
 }
