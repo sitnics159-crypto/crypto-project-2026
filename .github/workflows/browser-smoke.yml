@@ -38,6 +38,89 @@ jobs:
           done
           cat /tmp/preview-server.log
           exit 1
+      - name: Check the reserve preview without Kraken
+        if: github.event_name == 'pull_request' && github.head_ref == 'release/preview-without-kraken'
+        run: |
+          node scripts/build-without-kraken.mjs index.html preview-without-kraken.html
+          node <<'JS'
+          const assert = require('node:assert/strict');
+          const { readFileSync } = require('node:fs');
+          const { chromium } = require('playwright');
+
+          (async () => {
+            const browser = await chromium.launch();
+            try {
+              const page = await browser.newPage({ acceptDownloads: true });
+              const api = 'eth-sepolia.blockscout.com';
+              const requests = [];
+              const errors = [];
+              page.on('request', request => requests.push(new URL(request.url()).hostname));
+              page.on('pageerror', error => errors.push(error.message));
+              const address = '0xd482cCc8EC97e9cA7a365F2403bf7f228aD149A0';
+              const tx = '0x8e37e589d8d0b2552bd3359860f4d157ce2f8e7a4d7c3969e933c75a949a443d';
+              const preview = 'http://127.0.0.1:4173/preview-without-kraken.html';
+
+              await page.goto(preview + '?tx=' + tx);
+              await page.locator('#result').waitFor({ timeout: 25000 });
+              assert.equal(await page.locator('#r-hash').innerText(), tx);
+              const fee = await page.locator('#r-fee').innerText();
+              assert.match(fee, / ETH$/);
+              assert.equal(await page.locator('#market-title').count(), 0);
+              const notice = page.locator('p.foot').filter({ hasText: 'Поисковые данные:' });
+              assert.equal(await notice.isVisible(), true);
+              const noticeText = await notice.innerText();
+              assert.match(noticeText, /Blockscout Sepolia.*получатель увидит этот хеш или адрес/);
+              assert.doesNotMatch(noticeText, /Kraken/);
+              assert.equal(await page.locator('meta[name="referrer"]').getAttribute('content'), 'no-referrer');
+              console.log('Reserve preview lookup notice and referrer policy verified');
+              console.log('Known transaction rendered, fee:', fee);
+
+              await page.goto(preview + '?address=' + address);
+              await page.locator('#address-result').waitFor({ timeout: 25000 });
+              assert.equal((await page.locator('#a-hash').innerText()).toLowerCase(), address.toLowerCase());
+              const rows = page.locator('#address-token-transfers .token-transfer');
+              await rows.first().waitFor({ timeout: 25000 });
+              const filter = page.locator('[data-token-filter="outgoing"]');
+              const [outgoingResponse] = await Promise.all([
+                page.waitForResponse(response => {
+                  const url = new URL(response.url());
+                  return url.hostname === api && url.pathname.endsWith('/token-transfers') &&
+                    url.searchParams.get('filter') === 'from';
+                }),
+                filter.click()
+              ]);
+              assert.equal(outgoingResponse.status(), 200);
+              await page.waitForFunction(() =>
+                document.querySelector('[data-token-filter="outgoing"]').getAttribute('aria-pressed') === 'true' &&
+                !tokenTransferLoading && !document.querySelector('#token-export').disabled
+              );
+              await rows.first().waitFor({ timeout: 25000 });
+              const [download] = await Promise.all([
+                page.waitForEvent('download'),
+                page.locator('#token-export').click()
+              ]);
+              const csv = readFileSync(await download.path(), 'utf8');
+              const lines = csv.trim().split(/\r?\n/);
+              assert.match(lines[0], /transaction_hash/);
+              assert.match(lines[0], /amount_raw/);
+              assert.ok(lines.length - 1 >= await rows.count());
+              for (const line of lines.slice(1)) {
+                const [, from, to] = line.match(/^"[^"]+","[^"]+","ERC-20","(0x[\da-f]{40})","(0x[\da-f]{40})",/i) || [];
+                assert.equal(from?.toLowerCase(), address.toLowerCase());
+                assert.ok(to && to.toLowerCase() !== address.toLowerCase());
+              }
+              console.log('Filtered CSV contains only outgoing ERC-20 transfers');
+              assert.ok(requests.includes(api), 'Expected Blockscout requests');
+              assert.deepEqual([...new Set(requests)].sort(), ['127.0.0.1', api]);
+              assert.deepEqual(errors, []);
+              console.log('Known address rendered; ERC-20 CSV rows:', lines.length - 1);
+              console.log('Request hosts:', [...new Set(requests)].join(', '));
+            } finally {
+              await browser.close();
+            }
+          })().catch(error => { console.error(error); process.exitCode = 1; });
+          JS
+
       - name: Test page against live Sepolia and Kraken APIs
         run: |
           node <<'JS'
