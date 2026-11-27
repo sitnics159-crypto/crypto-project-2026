@@ -41,6 +41,7 @@ jobs:
           exit 1
       - name: Run deterministic tests without external network
         run: |
+          node tests/i18n-regression.mjs
           node tests/financial-validation.mjs
           node tests/offline-regression.cjs
           node tests/accessibility-regression.cjs
