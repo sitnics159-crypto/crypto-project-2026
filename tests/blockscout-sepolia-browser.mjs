@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
-import { createHash } from 'node:crypto';
+import { buildProPreview } from '../scripts/build-pro-preview.mjs';
 import { readFileSync } from 'node:fs';
 import { chromium } from 'playwright';
 import { createSepoliaHttpServer } from '../server/sepolia-http.mjs';
@@ -55,20 +55,10 @@ await once(server, 'listening');
 const origin = 'http://127.0.0.1:' + server.address().port;
 let browser;
 try {
-  const pageHtml = readFileSync(new URL('../index.html', import.meta.url), 'utf8')
-    .replaceAll('https://eth-sepolia.blockscout.com/api/v2/', '/api/sepolia/')
-    .replace('connect-src https://eth-sepolia.blockscout.com', "connect-src 'self'");
-  const script = pageHtml.match(/<script>([\s\S]*?)<\/script>/)?.[1];
-  assert.ok(script, 'Expected the application script');
-  const scriptHash = createHash('sha256').update(script).digest('base64');
-  const balanceModule = readFileSync(new URL('../token-balances.mjs', import.meta.url), 'utf8');
-  const digest = content => 'sha256-' + createHash('sha256').update(content).digest('base64');
-  const originalModuleHash = digest(balanceModule);
-  const previewModule = balanceModule.replace('https://eth-sepolia.blockscout.com/api/v2/', origin + '/api/sepolia/');
-  assert.notEqual(previewModule, balanceModule);
-  assert.ok(pageHtml.includes('integrity="' + originalModuleHash + '"'));
-  const preview = pageHtml.replace(/script-src 'sha256-[^']+'/, `script-src 'sha256-${scriptHash}'`)
-    .replaceAll(originalModuleHash, digest(previewModule));
+  const { indexHtml, balanceModule } = buildProPreview(
+    readFileSync(new URL('../index.html', import.meta.url), 'utf8'),
+    readFileSync(new URL('../token-balances.mjs', import.meta.url), 'utf8')
+  );
 
   const balanceUrl = origin + '/api/sepolia' + addresses + '/token-balances';
   assert.equal((await fetch(balanceUrl, { method: 'POST' })).status, 405);
@@ -83,10 +73,10 @@ try {
     const url = new URL(route.request().url());
     if (url.origin !== origin) return route.abort('blockedbyclient');
     if (url.pathname === '/token-balances.mjs') {
-      return route.fulfill({ body: previewModule, contentType: 'text/javascript; charset=utf-8' });
+      return route.fulfill({ body: balanceModule, contentType: 'text/javascript; charset=utf-8' });
     }
     if (!url.pathname.startsWith('/api/sepolia/')) {
-      return route.fulfill({ body: preview, contentType: 'text/html; charset=utf-8' });
+      return route.fulfill({ body: indexHtml, contentType: 'text/html; charset=utf-8' });
     }
     bridgeRequests.push(url);
     return route.continue();
