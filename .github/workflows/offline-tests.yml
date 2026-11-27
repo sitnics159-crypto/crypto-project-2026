@@ -26,6 +26,8 @@ jobs:
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
+      - name: Run Blockscout server unit tests
+        run: node --test tests/blockscout-sepolia.test.mjs
       - name: Install pinned Playwright
         run: |
           npm ci --ignore-scripts
@@ -43,5 +45,6 @@ jobs:
         run: |
           node --test tests/blockscout-pro-probe.test.mjs
           node tests/financial-validation.mjs
+          node tests/blockscout-sepolia-browser.mjs
           node tests/offline-regression.cjs
           node tests/accessibility-regression.cjs
