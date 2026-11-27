@@ -358,6 +358,9 @@ jobs:
                 );
                 console.log('Locally loaded pagination expanded; visible rows:', await page.locator('#address-token-transfers .token-transfer').count());
               }
+              const expectedTransferIds = await page.evaluate(() => tokenTransferItems.map(item => [
+                item.transaction_hash.toLowerCase(), String(item.log_index ?? '')
+              ].join(':')));
               const downloadPromise = page.waitForEvent('download');
               await page.locator('#token-export').click();
               const download = await downloadPromise;
@@ -367,7 +370,12 @@ jobs:
               for (const header of ['transaction_hash', 'log_index', 'amount_raw', 'decimals']) {
                 if (!csv.includes(header)) throw new Error('CSV missing column: ' + header);
               }
-              console.log('CSV downloaded:', download.suggestedFilename(), 'bytes:', Buffer.byteLength(csv));
+              const records = [...csv.matchAll(/^"(0x[\da-f]{64})","(\d*)"(?:,"(?:[^"]|"")*"){11}\r?$/gim)];
+              const exportedIds = records.map(([, hash, index]) => hash.toLowerCase() + ':' + index);
+              if (JSON.stringify(exportedIds) !== JSON.stringify(expectedTransferIds)) {
+                throw new Error('CSV transfer rows differ from the loaded transfer history');
+              }
+              console.log('CSV matched all', exportedIds.length, 'loaded transfer records in order.');
               }
               console.log('Relevant live API responses:', JSON.stringify(apiResponses, null, 2));
             } finally {
