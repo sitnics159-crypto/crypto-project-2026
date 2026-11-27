@@ -16,3 +16,20 @@ export function summarizeTransfers(address, transfers) {
   }
   return result;
 }
+
+export function createReportSnapshot({address, transfers, filter, hasMore, loading, error, generatedAt}) {
+  if (!['all','incoming','outgoing'].includes(filter)) throw new TypeError('Invalid filter');
+  if (loading || error || transfers == null) return null;
+  if (typeof hasMore !== 'boolean') throw new TypeError('Unknown pagination state');
+  if (typeof generatedAt !== 'string' || !Number.isFinite(Date.parse(generatedAt))) throw new TypeError('Invalid report date');
+  return {
+    network: 'Ethereum Sepolia',
+    source: 'Blockscout',
+    address: address.toLowerCase(),
+    generatedAt: new Date(generatedAt).toISOString(),
+    filter,
+    hasMore,
+    scope: 'loaded-token-transfer-records',
+    summary: summarizeTransfers(address, transfers)
+  };
+}
