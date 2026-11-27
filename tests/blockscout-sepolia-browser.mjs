@@ -29,8 +29,13 @@ const mocks = new Map([
     token: { address_hash: token, type: 'ERC-20', symbol: 'TEST', decimals: '18' }
   }]]
 ]);
+const preview = buildProPreview(
+  readFileSync(new URL('../index.html', import.meta.url), 'utf8'),
+  readFileSync(new URL('../token-balances.mjs', import.meta.url), 'utf8')
+);
 let time = 0;
 const server = createSepoliaHttpServer({
+  preview,
   now: () => time,
   apiKey: key,
   fetchUpstream: async url => {
@@ -55,30 +60,23 @@ await once(server, 'listening');
 const origin = 'http://127.0.0.1:' + server.address().port;
 let browser;
 try {
-  const { indexHtml, balanceModule } = buildProPreview(
-    readFileSync(new URL('../index.html', import.meta.url), 'utf8'),
-    readFileSync(new URL('../token-balances.mjs', import.meta.url), 'utf8')
-  );
-
   const balanceUrl = origin + '/api/sepolia' + addresses + '/token-balances';
   assert.equal((await fetch(balanceUrl, { method: 'POST' })).status, 405);
   assert.equal((await fetch(balanceUrl + '?apikey=client')).status, 400);
   assert.equal((await fetch(origin + '/unknown')).status, 404);
+  const module = await fetch(origin + '/token-balances.mjs');
+  assert.match(module.headers.get('content-type'), /^text\/javascript/);
+  assert.equal(module.headers.get('x-content-type-options'), 'nosniff');
+  assert.equal(await module.text(), preview.balanceModule);
   browser = await chromium.launch();
   const page = await browser.newPage({ acceptDownloads: true });
   const pageErrors = [];
   const bridgeRequests = [];
   page.on('pageerror', error => pageErrors.push(error.message));
-  await page.route('**/*', async route => {
+  await page.route('**/*', route => {
     const url = new URL(route.request().url());
     if (url.origin !== origin) return route.abort('blockedbyclient');
-    if (url.pathname === '/token-balances.mjs') {
-      return route.fulfill({ body: balanceModule, contentType: 'text/javascript; charset=utf-8' });
-    }
-    if (!url.pathname.startsWith('/api/sepolia/')) {
-      return route.fulfill({ body: indexHtml, contentType: 'text/html; charset=utf-8' });
-    }
-    bridgeRequests.push(url);
+    if (url.pathname.startsWith('/api/sepolia/')) bridgeRequests.push(url);
     return route.continue();
   });
   await page.goto(origin + '/?tx=' + hash);
