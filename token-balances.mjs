@@ -45,7 +45,11 @@ export function normalizeTokenBalances(payload) {
 export async function fetchTokenBalances(address, { signal, fetcher = globalThis.fetch } = {}) {
   if (typeof address !== 'string' || !/^0x[0-9a-fA-F]{40}$/.test(address)) throw new TypeError('Invalid address');
   const response = await fetcher('https://eth-sepolia.blockscout.com/api/v2/addresses/' + encodeURIComponent(address) + '/token-balances', { signal, headers: { Accept: 'application/json' }, credentials: 'omit', redirect: 'error' });
-  if (!response.ok) throw new Error('Token balance HTTP ' + response.status);
+  if (!response.ok) {
+    const error = new Error('Token balance HTTP ' + response.status);
+    error.status = response.status;
+    throw error;
+  }
   return normalizeTokenBalances(await response.json());
 }
 
@@ -82,8 +86,12 @@ if (typeof document !== 'undefined') {
       }
       status.textContent = incomplete ? 'Blockscout вернул неполные данные о балансах.'
         : balances.length ? 'Балансы загружены.' : 'Blockscout не вернул балансы ERC‑20.';
-    } catch {
-      if (pending === controller) status.textContent = 'Балансы недоступны. Попробуйте ещё раз.';
+    } catch (error) {
+      if (pending === controller) {
+        status.textContent = error?.status === 429
+          ? 'Слишком много запросов. Подождите немного и снова нажмите «Загрузить балансы».'
+          : 'Балансы недоступны. Попробуйте ещё раз.';
+      }
     } finally {
       clearTimeout(timeout);
       if (pending === controller) {
