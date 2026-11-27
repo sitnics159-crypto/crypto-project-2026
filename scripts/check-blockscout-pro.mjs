@@ -2,12 +2,12 @@ import assert from 'node:assert/strict';
 
 const key = process.env.BLOCKSCOUT_API_KEY?.trim();
 if (!key) {
-  console.error('Set BLOCKSCOUT_API_KEY in the local environment before running this check.');
+  console.error('BLOCKSCOUT_API_KEY is missing or empty. Set it in the local environment or update the GitHub Actions repository secret.');
   process.exit(2);
 }
 
 if (!/^proapi_[A-Za-z0-9_-]+$/.test(key)) {
-  console.error('BLOCKSCOUT_API_KEY must contain only the Pro API key, starting with proapi_.');
+  console.error('Invalid BLOCKSCOUT_API_KEY format. Copy the raw Pro API key (proapi_...) from the Blockscout developer portal into the secret value, without quotes, a URL, or an assignment. Then start a fresh workflow run on main.');
   process.exit(2);
 }
 
@@ -69,7 +69,7 @@ try {
         console.error('Ethereum accepted the key; Sepolia rejected the transaction request.');
       } catch (controlError) {
         console.error(controlError.status === 401
-          ? 'Both Ethereum and Sepolia rejected authorization.'
+          ? 'Both Ethereum and Sepolia rejected authorization. Check that the Pro API key is active in the Blockscout developer portal.'
           : 'The Ethereum control request did not verify authorization.');
       }
     }
@@ -99,7 +99,7 @@ try {
 
   for (const item of outgoing.items) {
     transferId(item);
-    assert.equal(item.token_type, 'ERC-20', 'Expected ERC-20 token type for CSV');
+    assert.ok(item.token_type === 'ERC-20', 'Expected ERC-20 token type for CSV');
     assert.ok(typeof item.to?.hash === 'string' && /^0x[\da-f]{40}$/i.test(item.to.hash),
       'Expected the transfer recipient for CSV');
     const rawAmount = item.total?.value;
@@ -122,6 +122,7 @@ try {
   console.log('Verified Sepolia transaction, fee fields, address, history, outgoing transfers, and token decimals.');
   console.log('Address risk flag field present:', Object.hasOwn(overview, 'is_scam'));
 } catch (error) {
-  console.error(error instanceof Error ? error.message : 'Blockscout check failed.');
+  const message = error instanceof Error ? error.message : 'Blockscout check failed.';
+  console.error(message.replaceAll(key, '[redacted]'));
   process.exitCode = 1;
 }
