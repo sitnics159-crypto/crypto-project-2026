@@ -14,6 +14,22 @@ test('uint256 boundary',()=>{const max=(1n<<256n)-1n;assert.equal(normalizeToken
 test('empty and invalid response',()=>{assert.deepEqual(normalizeTokenBalances([]),{balances:[],incomplete:false});assert.throws(()=>normalizeTokenBalances({items:[]}),TypeError);});
 test('duplicates and incomplete records flagged',()=>{const r=normalizeTokenBalances([record('1'),record('2'),null]);assert.equal(r.balances.length,1);assert.equal(r.incomplete,true);});
 test('unknown balance flagged',()=>{const r=normalizeTokenBalances([record(null)]);assert.equal(r.balances[0].amount,null);assert.equal(r.incomplete,true);});
+
+test('overflow leaves the balance unknown and preserves token metadata', () => {
+  const item = record(String(1n << 256n), '0');
+  item.token.name = 'Test token';
+  const balance = normalizeTokenBalance(item);
+  assert.equal(balance.amount, null);
+  assert.equal(balance.symbol, 'TEST');
+  assert.equal(balance.name, 'Test token');
+});
+
+test('a case-insensitive duplicate can recover an unknown amount', () => {
+  const valid = record('42', '0');
+  valid.token.address_hash = '0x' + 'A'.repeat(40);
+  const result = normalizeTokenBalances([record(null), valid, record('100', '0')]);
+  assert.deepEqual(result, { balances: [normalizeTokenBalance(valid)], incomplete: true });
+});
 test('API request uses Sepolia and omits credentials',async()=>{const address='0x'+'b'.repeat(40),signal=new AbortController().signal;const r=await fetchTokenBalances(address,{signal,fetcher:async(url,options)=>{assert.equal(url,'https://eth-sepolia.blockscout.com/api/v2/addresses/'+address+'/token-balances');assert.equal(options.signal,signal);assert.equal(options.credentials,'omit');assert.equal(options.redirect,'error');return {ok:true,json:async()=>[record('1')]};}});assert.equal(r.balances.length,1);});
 test('API rejects invalid address without request',async()=>{await assert.rejects(fetchTokenBalances('invalid',{fetcher:()=>assert.fail('unexpected request')}),TypeError);});
 test('API HTTP failure is not zero balance',async()=>{await assert.rejects(fetchTokenBalances('0x'+'b'.repeat(40),{fetcher:async()=>({ok:false,status:429})}),/429/);});
