@@ -35,7 +35,15 @@ try {
   await page.locator('#result').waitFor({ timeout: 20000 });
   assert.equal(await page.locator('#r-hash').innerText(), hash);
 
-  await page.goto(origin + '/?address=' + address);
+  const historyPath = '/api/sepolia/addresses/' + address + '/transactions';
+  const isHistory = response => new URL(response.url()).pathname.toLowerCase() === historyPath.toLowerCase();
+  const [firstHistory] = await Promise.all([
+    page.waitForResponse(response => isHistory(response) && !new URL(response.url()).search, { timeout: 20000 }),
+    page.goto(origin + '/?address=' + address)
+  ]);
+  assert.equal(firstHistory.status(), 200);
+  const firstPage = await firstHistory.json();
+  assert.ok(firstPage.items?.length > 0 && firstPage.next_page_params, 'Expected a paginated transaction history.');
   await page.locator('#address-result').waitFor({ timeout: 20000 });
   assert.equal((await page.locator('#a-hash').innerText()).toLowerCase(), address.toLowerCase());
   await page.locator('#token-balances-load').click();
@@ -48,11 +56,27 @@ try {
   const csv = readFileSync(await download.path(), 'utf8');
   assert.match(csv.split(/\r?\n/, 1)[0], /amount_raw/);
   assert.ok(csv.trim().split(/\r?\n/).length > 1, 'The CSV must include at least one transfer.');
+  const historyRows = page.locator('#address-transactions .tx-row');
+  const loadHistory = page.locator('#address-tx-load-more');
+  const visibleCount = await historyRows.count();
+  assert.ok(visibleCount > 0);
+  for (let i = visibleCount; i < firstPage.items.length; i += 5) await loadHistory.click();
+  const [secondHistory] = await Promise.all([
+    page.waitForResponse(response => isHistory(response) && !!new URL(response.url()).search, { timeout: 20000 }),
+    loadHistory.click()
+  ]);
+  assert.equal(secondHistory.status(), 200);
+  const secondItems = (await secondHistory.json()).items;
+  const firstHashes = new Set(firstPage.items.map(item => item.hash));
+  assert.ok(secondItems?.some(item => !firstHashes.has(item.hash)), 'The next page must include a new transaction.');
+  await page.waitForFunction(count => document.querySelectorAll('#address-transactions .tx-row').length > count,
+    firstPage.items.length, { timeout: 10000 });
+
   assert.ok(requests.some(url => url.startsWith(origin + '/api/sepolia/') && url.endsWith('/token-balances')));
   assert.ok(!requests.some(url => url.includes(apiKey) || new URL(url).searchParams.has('apikey')),
     'A browser request contained API credentials.');
   assert.ok(!(await page.content()).includes(apiKey), 'The page contained API credentials.');
-  console.log('Live Sepolia browser check passed for lookup, ERC-20 balances and CSV through the server.');
+  console.log('Live Sepolia browser check passed for lookup, ERC-20 balances, CSV and transaction pagination through the server.');
 } finally {
   await browser?.close();
   await new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
