@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { once } from 'node:events';
+import { createSepoliaHttpServer } from '../server/sepolia-http.mjs';
 import { createBlockscoutHandler } from '../server/blockscout-sepolia.mjs';
 
 const address = '0x' + 'a'.repeat(40);
@@ -90,4 +92,29 @@ test('handles missing credentials and provider failures without returning provid
   }
   const malformed = createBlockscoutHandler({ apiKey: 'mock-key', fetchUpstream: async () => new Response('invalid') });
   assert.equal((await malformed(path)).status, 502);
+});
+
+test('closing a client connection aborts the upstream balance request', { timeout: 5000 }, async t => {
+  const started = Promise.withResolvers();
+  const server = createSepoliaHttpServer({ apiKey: 'mock-key', fetchUpstream: async (url, { signal }) => {
+    started.resolve(signal);
+    await once(signal, 'abort');
+    throw signal.reason;
+  } });
+  server.listen(0, '127.0.0.1');
+  t.after(() => {
+    server.closeAllConnections();
+    return new Promise(resolve => server.close(resolve));
+  });
+  await once(server, 'listening');
+
+  const controller = new AbortController();
+  const pending = fetch('http://127.0.0.1:' + server.address().port +
+    '/api/sepolia/addresses/' + address + '/token-balances', { signal: controller.signal });
+  const upstream = await Promise.race([started.promise, pending]);
+  const rejected = assert.rejects(pending, { name: 'AbortError' });
+  const aborted = once(upstream, 'abort', { signal: AbortSignal.timeout(2000) });
+  controller.abort();
+  await Promise.all([rejected, aborted]);
+  assert.equal(upstream.aborted, true);
 });
