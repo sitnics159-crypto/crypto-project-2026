@@ -100,6 +100,17 @@ jobs:
               if (!(await page.locator('#address-result').isVisible())) {
                 throw new Error('Address lookup failed: ' + error);
               }
+              const balanceResponse = page.waitForResponse(response =>
+                new URL(response.url()).pathname.endsWith('/token-balances'), { timeout: 20000 });
+              await page.locator('#token-balances-load').click();
+              const balanceApi = await balanceResponse;
+              if (!balanceApi.ok() || !Array.isArray(await balanceApi.json())) {
+                throw new Error('Live Sepolia balance endpoint did not return an array. HTTP ' + balanceApi.status());
+              }
+              await page.locator('#token-balances-status').filter({
+                hasText: /Балансы загружены|не вернул балансы|неполные данные/
+              }).waitFor({ timeout: 10000 });
+              console.log('Live Sepolia token-balances response rendered.');
               const tokenRows = await page.locator('#address-token-transfers .token-transfer').count();
               console.log('Address loaded; ERC-20 rows:', tokenRows);
               const unfiltered = await page.evaluate(async address => {
