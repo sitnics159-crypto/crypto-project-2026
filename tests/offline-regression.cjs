@@ -56,7 +56,8 @@ const path = require('node:path');
     // Keep the static CSP hash synchronized with the sole inline application script.
     const sourceHtml = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
     const cspMatch = sourceHtml.match(/<meta http-equiv="Content-Security-Policy" content="([^"]+)">/i);
-    const inlineScripts = [...sourceHtml.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)];
+    const inlineScripts = [...sourceHtml.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)]
+      .filter(match => !/\bsrc=/.test(match[0].split('>')[0]));
     if (!cspMatch || inlineScripts.length !== 1) {
       throw new Error('Expected one inline application script and a meta CSP policy');
     }
@@ -67,6 +68,12 @@ const path = require('node:path');
       return [name, values.join(' ')];
     }));
     const scriptSources = cspDirectives.get('script-src') || '';
+    const moduleHash = 'sha256-' + crypto.createHash('sha256')
+      .update(fs.readFileSync(path.join(__dirname, '..', 'token-balances.mjs'))).digest('base64');
+    if (!sourceHtml.includes('src="./token-balances.mjs" integrity="' + moduleHash + '"') ||
+        scriptSources !== expectedScriptHash + " '" + moduleHash + "'") {
+      throw new Error('CSP and integrity must authorize only the current application scripts');
+    }
     const connectSources = cspDirectives.get('connect-src') || '';
     for (const [directive, expected] of [
       ['default-src', "'none'"], ['base-uri', "'none'"],
@@ -455,6 +462,29 @@ const path = require('node:path');
       throw new Error('Address lookup API failure/recovery regression: ' + JSON.stringify(apiErrors));
     }
     console.log('Address lookup 404, incomplete payload, timeout, HTTP 429, and HTTP 5xx fixtures passed');
+    const loadBalances = page.locator('#token-balances-load');
+    const balanceStatus = page.locator('#token-balances-status');
+    await page.evaluate(() => {
+      const originalFetch = window.fetch;
+      let attempts = 0;
+      window.fetch = async (url, options) => {
+        if (!String(url).endsWith('/token-balances')) return originalFetch(url, options);
+        if (++attempts === 1) return new Response('{}', { status: 503 });
+        window.fetch = originalFetch;
+        return new Response(JSON.stringify([{
+          value: '123456789012345678901234567890',
+          token: { type: 'ERC-20', address_hash: '0x' + 'b'.repeat(40), decimals: '18', symbol: '<TEST>' }
+        }]));
+      };
+    });
+    await loadBalances.click();
+    await balanceStatus.filter({ hasText: 'Попробуйте ещё раз' }).waitFor();
+    if (!(await page.locator('#address-result').isVisible())) {
+      throw new Error('Balance API failure hid the address overview');
+    }
+    await loadBalances.click();
+    await page.locator('#token-balances-list li').filter({ hasText: '<TEST>' })
+      .filter({ hasText: '123456789012.34567890123456789' }).waitFor();
     // A secondary activity endpoint failure must not hide a successfully resolved address or the other activity section.
     const partialAddressRegression = await page.evaluate(async () => {
       const originalFetch = window.fetch;

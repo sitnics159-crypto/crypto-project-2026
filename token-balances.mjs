@@ -48,3 +48,49 @@ export async function fetchTokenBalances(address, { signal, fetcher = globalThis
   if (!response.ok) throw new Error('Token balance HTTP ' + response.status);
   return normalizeTokenBalances(await response.json());
 }
+
+if (typeof document !== 'undefined') {
+  const button = document.querySelector('#token-balances-load');
+  const status = document.querySelector('#token-balances-status');
+  const list = document.querySelector('#token-balances-list');
+  let pending;
+
+  document.querySelector('#address-form').addEventListener('submit', () => {
+    pending?.abort();
+    pending = undefined;
+    button.disabled = false;
+    status.textContent = '';
+    list.replaceChildren();
+  });
+
+  button.addEventListener('click', async () => {
+    const address = document.querySelector('#a-hash').textContent;
+    const controller = new AbortController();
+    pending = controller;
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    button.disabled = true;
+    list.replaceChildren();
+    status.textContent = 'Загружаем балансы…';
+    try {
+      const { balances, incomplete } = await fetchTokenBalances(address, { signal: controller.signal });
+      if (pending !== controller) return;
+      for (const balance of balances) {
+        const row = document.createElement('li');
+        row.textContent = [balance.symbol || balance.name, balance.address,
+          balance.amount ?? 'баланс недоступен'].filter(Boolean).join(' · ');
+        list.append(row);
+      }
+      status.textContent = incomplete ? 'Blockscout вернул неполные данные о балансах.'
+        : balances.length ? 'Балансы загружены.' : 'Blockscout не вернул балансы ERC‑20.';
+    } catch {
+      if (pending === controller) status.textContent = 'Балансы недоступны. Попробуйте ещё раз.';
+    } finally {
+      clearTimeout(timeout);
+      if (pending === controller) {
+        pending = undefined;
+        button.disabled = false;
+      }
+    }
+  });
+  button.hidden = false;
+}
