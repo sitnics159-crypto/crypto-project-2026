@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { normalizeTokenBalances } from '../token-balances.mjs';
 
 const key = process.env.BLOCKSCOUT_API_KEY?.trim();
 if (!key) {
@@ -116,6 +117,12 @@ try {
   } else {
     console.log('ERC-20 pagination unverified: no cursor returned for the sample address.');
   }
+
+  const balancePayload = await get('ERC-20 balances', addressPath + '/token-balances');
+  const { balances } = normalizeTokenBalances(balancePayload);
+  const sampleBalance = balances.find(item => item.address.toLowerCase() === token.toLowerCase());
+  assert.ok(sampleBalance?.amount != null, 'Expected an exact ERC-20 balance for the sample token');
+  console.log('Verified an exact ERC-20 balance for the sample token.');
 
   const metadata = await get('token metadata', '/tokens/' + token);
   assert.ok(metadata?.decimals != null, 'Expected token decimals');
