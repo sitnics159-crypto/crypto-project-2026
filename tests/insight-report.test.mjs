@@ -28,3 +28,25 @@ test('snapshot refuses unavailable or unfinished data', () => {
   for (const patch of [{filter:'bad'},{hasMore:null},{generatedAt:'bad'},{address:'bad'}]) assert.throws(()=>createReportSnapshot({...snapshotInput,...patch}),TypeError);
   assert.equal(createReportSnapshot({...snapshotInput,transfers:[],hasMore:false}).summary.loaded,0);
 });
+
+import { reportLines, renderReport } from '../insight-report-view.mjs';
+test('printable report states scope, network and pagination', () => {
+  const report = createReportSnapshot(snapshotInput);
+  const lines = reportLines(report);
+  assert.ok(lines.includes('Фильтр: Входящие'));
+  assert.ok(lines.includes('Есть дополнительные страницы.'));
+  assert.ok(lines.some(line => line.includes('не всей истории')));
+  assert.ok(lines.some(line => line.includes('тестовая сеть')));
+  assert.throws(() => reportLines(null), TypeError);
+});
+test('render replaces previous content using text nodes only', () => {
+  const report = {...createReportSnapshot(snapshotInput),address:'<img src=x onerror=alert(1)>'};
+  const container = {ownerDocument:{createElement:tag=>({tag,textContent:''})},replaceChildren(...nodes){this.nodes=nodes;}};
+  renderReport(container,report);
+  assert.equal(container.nodes[0].tag,'h2');
+  assert.ok(container.nodes.some(node=>node.textContent==='Адрес: '+report.address));
+  assert.ok(container.nodes.every(node=>['h2','p'].includes(node.tag)));
+  renderReport(container,createReportSnapshot({...snapshotInput,hasMore:false}));
+  assert.ok(container.nodes.some(node=>node.textContent==='Источник не указал следующую страницу.'));
+  assert.ok(!container.nodes.some(node=>node.textContent.includes('<img')));
+});
