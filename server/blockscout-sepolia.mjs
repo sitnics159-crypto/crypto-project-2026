@@ -25,7 +25,7 @@ function failure(status, message, headers = {}) {
   return Response.json({ message }, { status, headers: { ...headers, 'cache-control': 'no-store' } });
 }
 
-export function createBlockscoutHandler({ apiKey, fetchUpstream = fetch, now = Date.now } = {}) {
+export function createBlockscoutHandler({ apiKey, fetchUpstream = fetch, now = Date.now, reserveStart } = {}) {
   let recentRequests = [];
 
   return async function handle(request) {
@@ -46,10 +46,18 @@ export function createBlockscoutHandler({ apiKey, fetchUpstream = fetch, now = D
     if (input.pathname.endsWith('/token-transfers')) upstream.searchParams.set('type', 'ERC-20');
 
     if (!apiKey) return failure(503, 'Data service is not configured');
-    const time = now();
-    recentRequests = recentRequests.filter(started => time - started < 1000);
-    if (recentRequests.length >= 5) return failure(429, 'Try again shortly', { 'retry-after': '1' });
-    recentRequests.push(time);
+    if (reserveStart) {
+      try {
+        if (!await reserveStart()) return failure(429, 'Try again shortly', { 'retry-after': '1' });
+      } catch {
+        return failure(503, 'Request limit service unavailable');
+      }
+    } else {
+      const time = now();
+      recentRequests = recentRequests.filter(started => time - started < 1000);
+      if (recentRequests.length >= 5) return failure(429, 'Try again shortly', { 'retry-after': '1' });
+      recentRequests.push(time);
+    }
     upstream.searchParams.set('apikey', apiKey);
 
     try {
