@@ -118,3 +118,25 @@ test('closing a client connection aborts the upstream balance request', { timeou
   await Promise.all([rejected, aborted]);
   assert.equal(upstream.aborted, true);
 });
+
+test('forwards the Pro transaction history cursor and rejects malformed fields', async () => {
+  const path = '/addresses/' + address + '/transactions';
+  const cursor = new URLSearchParams({
+    block_number: '10435582', fee: '641081769684', hash, index: '54',
+    inserted_at: '2026-03-12T23:02:17.601368Z', value: '0'
+  });
+  let calls = 0;
+  const handle = createBlockscoutHandler({ apiKey: 'mock-key', fetchUpstream: async url => {
+    calls++;
+    assert.equal(url.pathname, '/11155111/api/v2' + path);
+    for (const [name, value] of cursor) assert.equal(url.searchParams.get(name), value);
+    assert.equal(url.searchParams.get('apikey'), 'mock-key');
+    return Response.json({ items: [] });
+  } });
+  assert.equal((await handle(request(path + '?' + cursor))).status, 200);
+  for (const query of ['hash=bad', 'inserted_at=invalid', 'fee=-1', 'value=1.2', 'fee=1&fee=2', 'apikey=client']) {
+    assert.equal((await handle(request(path + '?' + query))).status, 400);
+  }
+  assert.equal((await handle(request('/addresses/' + address + '/token-transfers?fee=1'))).status, 400);
+  assert.equal(calls, 1);
+});
