@@ -10,6 +10,11 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      published_pages:
+        description: Test the published GitHub Pages site
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -137,6 +142,8 @@ jobs:
           if-no-files-found: error
           retention-days: 35
       - name: Test page against live Sepolia and Kraken APIs
+        env:
+          TEST_PUBLISHED_PAGES: ${{ inputs.published_pages && 'true' || 'false' }}
         run: |
           node <<'JS'
           const { chromium } = require('playwright');
@@ -160,7 +167,11 @@ jobs:
             });
             page.on('pageerror', error => console.error('PAGE ERROR:', error.message));
             try {
-              await page.goto('http://127.0.0.1:4173/', { waitUntil: 'domcontentloaded' });
+              const siteUrl = process.env.TEST_PUBLISHED_PAGES === 'true'
+                ? 'https://sitnics159-crypto.github.io/crypto-project-2026/'
+                : 'http://127.0.0.1:4173/';
+              console.log('Testing site:', siteUrl);
+              await page.goto(siteUrl, { waitUntil: 'domcontentloaded' });
               if (!(await page.title()).includes('Sepolia')) throw new Error('Unexpected page title');
 
               await page.locator('#market-title').waitFor();
@@ -225,6 +236,9 @@ jobs:
               console.log('Unfiltered token-transfer diagnostic:', JSON.stringify(unfiltered));
               if (tokenRows === 0 && (unfiltered.tokenTypes || []).includes('ERC-20')) {
                 throw new Error('Unfiltered API contains ERC-20 records but filtered API returned none');
+              }
+              if (tokenRows === 0 && process.env.TEST_PUBLISHED_PAGES === 'true') {
+                throw new Error('The published-site CSV check requires live ERC-20 transfers');
               }
               if (tokenRows === 0) {
                 console.log('Known address has no ERC-20 records in current Blockscout response; row-dependent ERC-20 checks will be skipped.');
