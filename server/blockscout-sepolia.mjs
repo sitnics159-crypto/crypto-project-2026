@@ -44,7 +44,7 @@ export function createBlockscoutHandler({ apiKey, fetchUpstream = fetch, now = D
       const response = await fetchUpstream(upstream, {
         headers: { accept: 'application/json' },
         redirect: 'error',
-        signal: AbortSignal.timeout(10000)
+        signal: AbortSignal.any([request.signal, AbortSignal.timeout(10000)])
       });
       if (response.status === 404) return failure(404, 'Data not found');
       if (response.status === 429) return failure(429, 'Provider rate limit reached');
