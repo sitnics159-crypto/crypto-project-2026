@@ -14,12 +14,20 @@ export function createSepoliaHttpServer(options) {
       outgoing.writeHead(404, { 'cache-control': 'no-store' }).end();
       return;
     }
+    const client = new AbortController();
+    outgoing.once('close', () => {
+      if (!outgoing.writableFinished) client.abort();
+    });
     try {
-      const request = new Request('http://localhost' + target.slice('/api/sepolia'.length));
+      const request = new Request('http://localhost' + target.slice('/api/sepolia'.length), {
+        signal: client.signal
+      });
       const response = await handle(request);
       const body = await response.text();
+      if (outgoing.destroyed) return;
       outgoing.writeHead(response.status, Object.fromEntries(response.headers)).end(body);
     } catch {
+      if (outgoing.destroyed) return;
       outgoing.writeHead(502, { 'cache-control': 'no-store' }).end();
     }
   });
