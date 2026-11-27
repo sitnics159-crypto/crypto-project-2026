@@ -204,6 +204,12 @@ const axe = require('axe-core');
         }
         return json({ items: [fixtureTokenTransfer], next_page_params: { block_number: 12344, index: 0 } });
       }
+      if (url.pathname === '/api/v2/addresses/' + fixtureAddress + '/token-balances') {
+        return json([{
+          value: ((1n << 256n) - 1n).toString(),
+          token: { type: 'ERC-20', address_hash: '0x' + 'f'.repeat(40), symbol: 'T'.repeat(80), decimals: '0' }
+        }]);
+      }
       return route.abort('blockedbyclient');
     });
 
@@ -253,9 +259,32 @@ const axe = require('axe-core');
     const tokenPaginationLoadingAudit = await auditCurrentState('token transfer pagination loading');
     await page.waitForFunction(() => document.querySelector('#token-list-status')?.textContent.includes('Показано 2 из 2'));
 
+    await page.setViewportSize({ width: 320, height: 740 });
+    const balanceButton = page.getByRole('button', { name: 'Загрузить балансы' });
+    await balanceButton.focus();
+    await page.keyboard.press('Enter');
+    const balanceRow = page.locator('#token-balances-list li');
+    await balanceRow.waitFor({ state: 'visible' });
+    const balanceLayout = await balanceRow.evaluate(row => {
+      const status = document.querySelector('#token-balances-status');
+      return {
+        text: row.textContent,
+        rowFits: row.scrollWidth <= row.clientWidth + 1 &&
+          row.getBoundingClientRect().right <= document.documentElement.clientWidth + 1,
+        announced: status.getAttribute('aria-live') === 'polite' &&
+          status.textContent === 'Балансы загружены.'
+      };
+    });
+    if (!balanceLayout.rowFits || !balanceLayout.announced ||
+        !balanceLayout.text.includes('0x' + 'f'.repeat(40)) ||
+        !balanceLayout.text.includes(((1n << 256n) - 1n).toString())) {
+      throw new Error('Mobile ERC-20 balance regression: ' + JSON.stringify(balanceLayout));
+    }
+    const balanceMobileAudit = await auditCurrentState('ERC-20 balances at 320px');
+
     console.log('Loading, result, and pagination accessibility audits:', JSON.stringify({
       transactionLoadingAudit, transactionResultAudit, addressLoadingAudit,
-      addressResultAudit, transactionPaginationLoadingAudit, tokenPaginationLoadingAudit
+      addressResultAudit, transactionPaginationLoadingAudit, tokenPaginationLoadingAudit, balanceMobileAudit
     }));
 
     if (pageErrors.length) throw new Error('Browser runtime errors: ' + JSON.stringify(pageErrors));
