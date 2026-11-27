@@ -493,6 +493,63 @@ const path = require('node:path');
     await loadBalances.click();
     await page.locator('#token-balances-list li').filter({ hasText: '<TEST>' })
       .filter({ hasText: '123456789012.34567890123456789' }).waitFor();
+    // Allow the old fetch to resolve after cancellation to exercise the stale response guard.
+    const balanceRace = await page.evaluate(async () => {
+      const originalFetch = window.fetch;
+      const nextAddress = '0x' + 'c'.repeat(40);
+      const balanceButton = document.querySelector('#token-balances-load');
+      const balanceList = document.querySelector('#token-balances-list');
+      const balanceStatus = document.querySelector('#token-balances-status');
+      const waitFor = async condition => {
+        for (let attempt = 0; attempt < 100; attempt++) {
+          if (condition()) return;
+          await new Promise(resolve => setTimeout(resolve, 5));
+        }
+        throw new Error('Timed out waiting for the balance lookup race');
+      };
+      const makeBalance = symbol => [{
+        value: '42', token: { type: 'ERC-20', address_hash: '0x' + 'b'.repeat(40), decimals: '0', symbol }
+      }];
+      let oldSignal, resolveOld;
+      try {
+        window.fetch = async (url, options) => {
+          const path = new URL(String(url)).pathname;
+          if (path.endsWith('/token-balances')) {
+            if (path.includes(nextAddress)) return Response.json(makeBalance('CURRENT'));
+            oldSignal = options.signal;
+            return new Promise(resolve => { resolveOld = resolve; });
+          }
+          if (path === '/api/v2/addresses/' + nextAddress) {
+            return Response.json({ hash: nextAddress, coin_balance: '0' });
+          }
+          if (path.startsWith('/api/v2/addresses/' + nextAddress + '/')) {
+            return Response.json({ items: [], next_page_params: null });
+          }
+          return originalFetch(url, options);
+        };
+        balanceButton.click();
+        await waitFor(() => !!resolveOld);
+        addressInput.value = nextAddress;
+        addressForm.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+        await waitFor(() => !addressResult.hidden && document.querySelector('#a-hash').textContent === nextAddress);
+        const reset = balanceList.textContent === '' && balanceStatus.textContent === '' && !balanceButton.disabled;
+        balanceButton.click();
+        await waitFor(() => balanceList.textContent.includes('CURRENT') && !balanceButton.disabled);
+        resolveOld(Response.json(makeBalance('STALE')));
+        await new Promise(resolve => setTimeout(resolve, 0));
+        return {
+          aborted: oldSignal.aborted,
+          reset,
+          currentOnly: balanceList.textContent.includes('CURRENT') && !balanceList.textContent.includes('STALE')
+        };
+      } finally {
+        window.fetch = originalFetch;
+      }
+    });
+    if (!balanceRace.aborted || !balanceRace.reset || !balanceRace.currentOnly) {
+      throw new Error('Switching addresses left stale balance state: ' + JSON.stringify(balanceRace));
+    }
+    console.log('ERC-20 balance cancellation and stale response checks passed');
     // A secondary activity endpoint failure must not hide a successfully resolved address or the other activity section.
     const partialAddressRegression = await page.evaluate(async () => {
       const originalFetch = window.fetch;
