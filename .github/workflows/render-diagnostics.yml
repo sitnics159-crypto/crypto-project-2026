@@ -1,0 +1,29 @@
+name: Render API diagnostics
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/render-diagnostics.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  render-diagnostics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check public Render endpoints
+        shell: bash
+        run: |
+          set -u
+          base=https://crypto-project-2026.onrender.com
+          failed=0
+          probe() {
+            local path="$1" expected="$2" status
+            status=$(curl --silent --show-error --connect-timeout 15 --max-time 100 --output /dev/null --write-out '%{http_code}' "$base$path") || status=000
+            printf '%s HTTP %s (expected %s)\n' "$path" "$status" "$expected"
+            if [ "$status" != "$expected" ]; then failed=1; fi
+          }
+          probe /healthz 200
+          probe /api/sepolia/addresses/0x000000000000000000000000000000000000dEaD 200
+          probe '/api/sepolia/addresses/0x000000000000000000000000000000000000dEaD?utm_source=chatgpt.com' 400
+          exit "$failed"
