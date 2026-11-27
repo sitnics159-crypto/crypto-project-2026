@@ -28,6 +28,8 @@ jobs:
           node-version: 22
       - name: Run Blockscout server unit tests
         run: node --test tests/blockscout-sepolia.test.mjs tests/blockscout-shared-rate-limit.test.mjs
+      - name: Run Insight Report unit tests
+        run: node --test tests/insight-report.test.mjs
       - name: Install pinned Playwright
         run: |
           npm ci --ignore-scripts
