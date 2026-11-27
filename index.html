@@ -1,11 +1,12 @@
 <!doctype html>
-<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><meta name="description" content="Понятное объяснение публичной транзакции в Ethereum Sepolia"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-qQdnTQY/c8ZnlZHgvYI7d4KTcp8CjTNrIERVU2FMfY0=' 'sha256-Ekwic+6THKB2NiYX9xijX+pDXbOKFKiOn3QwxHUNC4c='; style-src 'unsafe-inline'; connect-src https://eth-sepolia.blockscout.com https://api.kraken.com; img-src 'self' data:; font-src 'self'; base-uri 'none'; form-action 'self'; object-src 'none'"><title>Проверка транзакции Sepolia — Crypto Project 2026</title>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><meta name="description" content="Понятное объяснение публичной транзакции в Ethereum Sepolia"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-ztZuJubkpI3YYdDppX8qg0M9rVZQU1k4GwIfbGUSDEw=' 'sha256-Ekwic+6THKB2NiYX9xijX+pDXbOKFKiOn3QwxHUNC4c='; style-src 'unsafe-inline'; connect-src https://eth-sepolia.blockscout.com https://api.kraken.com; img-src 'self' data:; font-src 'self'; base-uri 'none'; form-action 'self'; object-src 'none'"><title>Проверка транзакции Sepolia — Crypto Project 2026</title>
 <style>
 :root{color-scheme:dark;--bg:#0c1020;--panel:#151d31;--line:#303d59;--text:#f4f6ff;--muted:#a8b3c9;--accent:#a78bfa;--green:#69dbb2;--red:#ff8793;--amber:#ffd27a}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 50% -18%,#44327a 0,transparent 44%),linear-gradient(160deg,#0c1020,#10172a);color:var(--text);font:16px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}.wrap{width:min(100% - 32px,920px);margin:auto}.top{display:flex;justify-content:space-between;align-items:center;padding:25px 0}.brand{font-weight:750}.mark{color:#d6c8ff;margin-right:10px}.net{border:1px solid #69dbb255;border-radius:999px;padding:6px 11px;color:#baf6de;background:#69dbb211;font-size:12px;font-weight:700}main{padding:50px 0 72px}.intro{text-align:center;margin:0 auto 32px;max-width:690px}.eyebrow{color:#c7b8ff;text-transform:uppercase;letter-spacing:.16em;font-size:11px;font-weight:750}.intro h1{font-size:clamp(34px,6vw,54px);line-height:1.08;letter-spacing:-.04em;margin:12px 0}.intro p{color:var(--muted);font-size:17px}.panel{background:linear-gradient(145deg,#172139,#121a2c);border:1px solid #384563;border-radius:20px;box-shadow:0 24px 70px #05071388}.search{padding:23px}.label{display:block;margin-bottom:9px;font-weight:650;font-size:14px}.row{display:flex;gap:10px}.row input{min-width:0;flex:1;background:#0c1323;border:1px solid #384563;border-radius:11px;padding:14px 15px;color:var(--text);font:16px ui-monospace,Consolas,monospace;outline:none}.row input:focus{border-color:var(--accent);box-shadow:0 0 0 3px #a78bfa22}.row input::placeholder{color:#7986a0}.button{border:0;border-radius:11px;padding:0 18px;background:linear-gradient(135deg,#7654d6,#633dcc);color:#fff;font-weight:700;cursor:pointer}.button:disabled{opacity:.65;cursor:wait}.hint,.source,.foot{font-size:12px;color:#8995ad}.hint{margin:10px 0 0}.error{margin:14px 0 0;border:1px solid #ff879366;background:#ff879311;color:#ffd3d7;padding:11px 13px;border-radius:10px;font-size:14px}.error[hidden],.result[hidden],.loading[hidden]{display:none}.loading{margin:16px 2px;color:#c7b8ff;font-size:14px}.result{margin-top:18px;overflow:hidden}.head{display:flex;justify-content:space-between;gap:12px;padding:20px 22px;border-bottom:1px solid var(--line)}.head h2{font-size:15px;margin:0 0 5px}.hash{font:12px/1.6 ui-monospace,Consolas,monospace;overflow-wrap:anywhere;color:#c3cce0}.badge{white-space:nowrap;height:max-content;border:1px solid var(--line);border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700}.badge.success{color:var(--green);border-color:#69dbb255}.badge.failed{color:var(--red);border-color:#ff879355}.badge.pending{color:var(--amber);border-color:#ffd27a55}.details{padding:20px 22px 22px}.tx-token-events{margin-top:14px}.tx-token-events h3{font-size:14px;margin:0 0 8px}.tx-token-events[hidden]{display:none}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.item{min-width:0;border:1px solid #293651;background:#0e1628;border-radius:12px;padding:12px 14px}.item dt{font-size:12px;color:#94a1ba;margin-bottom:5px}.item dd{margin:0;font-size:14px;font-weight:600;overflow-wrap:anywhere}.mono{font:12px/1.6 ui-monospace,Consolas,monospace;color:#d1d8e8}.risk-note{margin-top:12px;padding:12px 14px;border:1px solid #ffd27a55;background:#ffd27a0d;border-radius:12px;color:#ffe5ad;font-size:13px}.risk-note[hidden]{display:none}.explain{margin-top:12px;padding:14px 16px;border:1px solid #a78bfa44;background:#a78bfa0d;border-radius:12px}.explain h3{margin:0 0 5px;color:#d5c8ff;font-size:13px}.explain p{margin:0;font-size:14px;color:#dce1ef}.actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:15px}.link{color:#cbbaff;text-decoration:none;font-size:13px;font-weight:650}.link:hover{text-decoration:underline}.foot{text-align:center;margin-top:20px}.foot strong{color:#b9c3d8}@media(max-width:620px){.wrap{width:calc(100% - 24px)}.top{padding:17px 0}.brand{font-size:14px}.net{font-size:11px;padding:5px 8px}main{padding:38px 0 54px}.intro p{font-size:15px}.search{padding:17px}.row{flex-direction:column}.row input,.button{height:48px}.head{flex-direction:column;padding:17px}.details{padding:16px}.grid{grid-template-columns:1fr}}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
 
 .address-panel{margin-top:18px;padding:23px}.address-panel h2{margin:0 0 6px;font-size:20px}.address-panel>p{margin:0 0 16px;color:var(--muted);font-size:14px}.address-result{margin-top:16px}.address-meta{margin-bottom:14px}.tx-list{display:grid;gap:9px;margin-top:14px}.tx-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 12px;padding:12px;border:1px solid #293651;background:#0e1628;border-radius:12px}.tx-row a{color:#cbbaff;text-decoration:none;font:12px/1.5 ui-monospace,Consolas,monospace;overflow-wrap:anywhere}.tx-row a:hover{text-decoration:underline}.tx-row span{font-size:12px;color:#a8b3c9}.address-note{font-size:12px;color:#8995ad;margin-top:12px}@media(max-width:620px){.address-panel{padding:17px}.tx-row{grid-template-columns:1fr}}
 .tx-row span{overflow-wrap:anywhere}.tx-row .tx-scam-note{grid-column:1/-1;color:#ffe5ad}.token-transfer-list{display:grid;gap:9px;margin-top:10px}.token-transfer{display:grid;gap:6px;padding:12px;border:1px solid #293651;background:#0e1628;border-radius:12px}.token-transfer a{color:#cbbaff;text-decoration:none;font:12px/1.5 ui-monospace,Consolas,monospace;overflow-wrap:anywhere}.token-transfer a:hover{text-decoration:underline}.token-transfer span{font-size:12px;color:#a8b3c9;overflow-wrap:anywhere}.token-controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.token-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px}.token-export{border:1px solid #69dbb266;border-radius:10px;padding:8px 12px;background:#69dbb211;color:#baf6de;font-weight:650;cursor:pointer}.token-export:disabled{opacity:.55;cursor:not-allowed}.token-export-status{font-size:12px;color:#8995ad}.filter-button{border:1px solid #384563;border-radius:999px;padding:7px 12px;background:#0e1628;color:#c6d0e4;font-size:12px;font-weight:650;cursor:pointer}.filter-button[aria-pressed="true"]{border-color:#a78bfa;color:#dfd5ff;background:#a78bfa18}.load-more{margin-top:12px;padding:9px 13px;border:1px solid #a78bfa66;border-radius:10px;background:#a78bfa12;color:#ddd2ff;font-weight:650;cursor:pointer}.load-more:disabled{opacity:.6;cursor:wait}.token-list-status{margin:9px 0 0;color:#8995ad;font-size:12px}.market-panel{margin-top:18px;padding:23px}.market-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.market-head h2{margin:0;font-size:20px}.market-panel>p{margin:7px 0 12px;color:var(--muted);font-size:13px}.market-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}.market-card{min-width:0;border:1px solid #293651;background:#0e1628;border-radius:14px;padding:16px}.market-card h3{margin:0;color:#dbe2f2;font-size:13px}.market-price{font-size:clamp(23px,4vw,32px);font-weight:750;letter-spacing:-.03em;margin:8px 0 4px}.market-change{font-size:13px;font-weight:700}.market-change.positive{color:var(--green)}.market-change.negative{color:var(--red)}.market-chart-wrap{margin:12px 0 0;padding:7px 0 0;border-top:1px solid #293651}.market-chart{display:block;width:100%;height:auto;overflow:visible}.market-chart-line{fill:none;stroke:#a78bfa;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}.market-chart-area{fill:#a78bfa;fill-opacity:.10}.market-chart-base{stroke:#384563;stroke-width:1;stroke-dasharray:4 5}.market-chart-axis{display:flex;justify-content:space-between;color:#8995ad;font-size:10px;margin-top:-2px}.market-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}.market-stat{color:#94a1ba;font-size:11px}.market-stat strong{display:block;color:#dce1ef;font-size:13px;margin-top:2px}.market-status{font-size:12px;color:#8995ad;margin-top:12px}.market-status[role=alert]{color:#ffd3d7}.refresh-button{border:1px solid #a78bfa66;border-radius:10px;padding:8px 12px;background:#a78bfa12;color:#ddd2ff;font-weight:650;cursor:pointer}.refresh-button:disabled{opacity:.6;cursor:wait}@media(max-width:620px){.market-panel{padding:17px}.market-grid{grid-template-columns:1fr}.market-head{align-items:flex-start}}button:focus-visible,a:focus-visible,input:focus-visible,[tabindex]:focus-visible{outline:3px solid #d6c8ff;outline-offset:3px}
 .sr-only{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+@media print{body:has(#insight-report:not([hidden])) *{visibility:hidden}body:has(#insight-report:not([hidden])) #insight-report,body:has(#insight-report:not([hidden])) #insight-report *{visibility:visible;color:#000;background:#fff}body:has(#insight-report:not([hidden])) #insight-report{position:absolute;inset:0;overflow-wrap:anywhere}}
 </style></head><body><div class="wrap"><header class="top"><div class="brand"><span class="mark">◇</span>Crypto Project <span style="color:#9eabc2;font-weight:500">/ 2026</span></div><span class="net">● Тестовая сеть Sepolia</span></header><main><section class="intro"><div class="eyebrow">Проверка транзакции</div><h1>Разберитесь,<br>что произошло в сети</h1><p>Введите публичный хеш транзакции Sepolia — покажем доступные сведения и объясним их простым языком.</p></section><section class="panel search"><label class="label" for="tx-hash">Хеш транзакции</label><form id="form" novalidate><div class="row"><input id="tx-hash" name="hash" type="text" inputmode="text" autocomplete="off" spellcheck="false" maxlength="66" placeholder="0x и 64 символа" aria-describedby="hint" required><button id="submit" class="button" type="submit">Проверить транзакцию</button></div></form><p id="hint" class="hint">Только публичные данные Sepolia. Ссылку на проверку можно сохранить; кошелёк не нужен.</p><p id="error" class="error" role="alert" hidden></p></section><p id="loading" class="loading" role="status" aria-live="polite" hidden>Ищем транзакцию в Sepolia…</p><section id="result" class="panel result" aria-live="polite" hidden><div class="head"><div><h2>Данные транзакции</h2><div id="r-hash" class="hash"></div></div><span id="r-status" class="badge"></span></div><div class="details"><dl class="grid"><div class="item"><dt>Отправитель</dt><dd id="r-from" class="mono"></dd></div><div class="item"><dt>Получатель</dt><dd id="r-to" class="mono"></dd></div><div class="item"><dt>Тип операции</dt><dd id="r-type"></dd></div><div class="item"><dt>Метод контракта</dt><dd id="r-method" class="mono"></dd></div><div class="item"><dt>Сумма</dt><dd id="r-value"></dd></div><div class="item"><dt>Комиссия сети</dt><dd id="r-fee"></dd></div><div class="item"><dt>Блок</dt><dd id="r-block"></dd></div><div class="item"><dt>Время включения</dt><dd id="r-time"></dd></div></dl><section id="r-token-transfer-panel" class="tx-token-events" aria-labelledby="r-token-title" hidden><h3 id="r-token-title">Переводы токенов, обнаруженные в транзакции</h3><p id="r-token-transfer-note" class="hint"></p><div id="r-token-transfers" class="token-transfer-list"></div></section><div id="r-scam-note" class="risk-note" role="status" hidden></div><div class="explain"><h3>Краткое объяснение</h3><p id="r-explanation"></p></div><div class="actions"><a id="explorer-link" class="link" href="#" target="_blank" rel="noopener noreferrer">Открыть запись в обозревателе ↗</a><span class="source">Источник данных: Blockscout Sepolia</span></div></div></section>
 <section class="panel address-panel" aria-labelledby="address-title">
 <h2 id="address-title">Проверка адреса Sepolia</h2>
@@ -42,7 +43,7 @@
 </div>
 <div class="token-actions"><button id="token-export" class="token-export" type="button" disabled>Скачать CSV загруженных переводов</button><span id="token-export-status" class="token-export-status" aria-live="polite"></span></div>
 <p id="token-list-status" class="token-list-status" aria-live="polite"></p>
-<div id="address-token-transfers" class="token-transfer-list"></div>
+<div class="token-actions"><button id="insight-create" type="button" class="token-export">Сформировать аналитический отчёт</button><button id="insight-print" type="button" class="token-export" disabled>Сохранить PDF</button></div><section id="insight-report" hidden aria-live="polite" style="overflow-wrap:anywhere"></section><div id="address-token-transfers" class="token-transfer-list"></div>
 <button id="token-load-more" class="load-more" type="button" hidden>Показать ещё переводы</button>
 <p class="address-note">Данные предоставляет Blockscout Sepolia. Отсутствие транзакций означает, что обозреватель не вернул недавнюю активность для этого адреса.</p>
 <div class="actions"><a id="address-explorer" class="link" href="#" target="_blank" rel="noopener noreferrer">Открыть адрес в обозревателе ↗</a></div>
@@ -202,6 +203,7 @@ function appendTokenTransfer(item,address){
 }
 function filteredTokenTransfers(){return tokenTransferItems.filter(item=>{const from=item.from&&item.from.hash||'',to=item.to&&item.to.hash||'',address=tokenTransferAddress.toLowerCase(),incoming=to.toLowerCase()===address&&from.toLowerCase()!==address,outgoing=from.toLowerCase()===address&&to.toLowerCase()!==address;return tokenTransferFilter==='all'||(tokenTransferFilter==='incoming'&&incoming)||(tokenTransferFilter==='outgoing'&&outgoing)})}
 function renderTokenTransferList(){
+ clearInsightReport();
  const filtered=filteredTokenTransfers();
  tokenList.replaceChildren();
  const visible=filtered.slice(0,tokenTransferVisible);
@@ -215,7 +217,7 @@ async function loadTokenTransfersForFilter(filter){
  if(tokenTransferController)tokenTransferController.abort();
  const controller=new AbortController();tokenTransferController=controller;
  tokenTransferItems=[];tokenTransferNext=null;tokenTransferVisible=5;tokenTransferLoadError='';
- tokenTransferLoading=true;tokenListStatus.textContent='Загружаем переводы…';tokenList.replaceChildren();
+ tokenTransferLoading=true;clearInsightReport();tokenListStatus.textContent='Загружаем переводы…';tokenList.replaceChildren();
  tokenLoadMore.hidden=true;tokenLoadMore.disabled=true;tokenExport.disabled=true;tokenExportStatus.textContent='';
  const params=new URLSearchParams({type:'ERC-20'});
  if(filter==='incoming')params.set('filter','to');
@@ -248,7 +250,7 @@ async function loadMoreTokenTransfers(){
  if(!tokenTransferNext)return;
  const requestAddress=tokenTransferAddress,requestId=++tokenTransferGeneration,nextPage={...tokenTransferNext};
  const controller=new AbortController();if(tokenTransferController)tokenTransferController.abort();tokenTransferController=controller;
- tokenTransferLoading=true;tokenTransferLoadError='';tokenLoadMore.disabled=true;tokenLoadMore.textContent='Загружаем…';
+ tokenTransferLoading=true;clearInsightReport();tokenTransferLoadError='';tokenLoadMore.disabled=true;tokenLoadMore.textContent='Загружаем…';
  const params=new URLSearchParams();for(const [key,value] of Object.entries(nextPage))if(value!==null&&value!==undefined)params.set(key,String(value));params.set('type','ERC-20');if(tokenTransferFilter!=='all')params.set('filter',tokenTransferFilter==='incoming'?'to':'from');
  const timeout=setTimeout(()=>controller.abort(),15000);
  try{
@@ -461,4 +463,77 @@ async function loadMarketSnapshot(){
  }finally{clearTimeout(timeout);marketRefresh.disabled=false}
 }
 marketRefresh.addEventListener('click',loadMarketSnapshot);loadMarketSnapshot();restoreShareableLookup();
+
+const validAddress = value => typeof value === 'string' && /^0x[0-9a-fA-F]{40}$/.test(value);
+function summarizeTransfers(address, transfers) {
+  if (!validAddress(address)) throw new TypeError('Invalid Sepolia address');
+  if (transfers == null) return null;
+  if (!Array.isArray(transfers)) throw new TypeError('Invalid transfers');
+  const target = address.toLowerCase();
+  const result = { loaded: transfers.length, incoming: 0, outgoing: 0, self: 0, unknown: 0 };
+  for (const item of transfers) {
+    const from = item?.from?.hash, to = item?.to?.hash;
+    if (!validAddress(from) || !validAddress(to)) { result.unknown++; continue; }
+    const a = from.toLowerCase() === target, b = to.toLowerCase() === target;
+    if (a && b) result.self++;
+    else if (a) result.outgoing++;
+    else if (b) result.incoming++;
+    else result.unknown++;
+  }
+  return result;
+}
+
+function createReportSnapshot({address, transfers, filter, hasMore, loading, error, generatedAt}) {
+  if (!['all','incoming','outgoing'].includes(filter)) throw new TypeError('Invalid filter');
+  if (loading || error || transfers == null) return null;
+  if (typeof hasMore !== 'boolean') throw new TypeError('Unknown pagination state');
+  if (typeof generatedAt !== 'string' || !Number.isFinite(Date.parse(generatedAt))) throw new TypeError('Invalid report date');
+  return {
+    network: 'Ethereum Sepolia',
+    source: 'Blockscout',
+    address: address.toLowerCase(),
+    generatedAt: new Date(generatedAt).toISOString(),
+    filter,
+    hasMore,
+    scope: 'loaded-token-transfer-records',
+    summary: summarizeTransfers(address, transfers)
+  };
+}
+
+function reportLines(report) {
+  if (!report || report.network !== 'Ethereum Sepolia' || !report.summary) throw new TypeError('Invalid report');
+  const filters = new Map([['all','Все'],['incoming','Входящие'],['outgoing','Исходящие']]);
+  if (!filters.has(report.filter)) throw new TypeError('Invalid filter');
+  const s = report.summary;
+  return [
+    'Crypto Insight Report',
+    'Ethereum Sepolia — тестовая сеть, не реальные финансовые активы',
+    'Источник: Blockscout',
+    'Адрес: ' + report.address,
+    'Дата формирования (UTC): ' + report.generatedAt,
+    'Фильтр: ' + filters.get(report.filter),
+    'Загружено записей: ' + s.loaded,
+    'Входящие: ' + s.incoming,
+    'Исходящие: ' + s.outgoing,
+    'Переводы на собственный адрес: ' + s.self,
+    'Не классифицировано: ' + s.unknown,
+    report.hasMore ? 'Есть дополнительные страницы.' : 'Источник не указал следующую страницу.',
+    'Анализ только загруженных записей выбранного фильтра, не всей истории адреса.',
+    'Отчёт не подтверждает безопасность адреса и не является финансовой рекомендацией.'
+  ];
+}
+function renderReport(container, report) {
+  const lines = reportLines(report);
+  const doc = container.ownerDocument;
+  const nodes = lines.map((line, index) => {
+    const element = doc.createElement(index === 0 ? 'h2' : 'p');
+    element.textContent = line;
+    return element;
+  });
+  container.replaceChildren(...nodes);
+}
+
+function clearInsightReport(){const panel=document.querySelector('#insight-report');panel.hidden=true;panel.replaceChildren();document.querySelector('#insight-print').disabled=true;}
+document.querySelector('#insight-create').addEventListener('click',()=>{clearInsightReport();if(addressResult.hidden||!tokenTransferAddress||tokenTransferLoading||tokenTransferLoadError)return;const report=createReportSnapshot({address:tokenTransferAddress,transfers:filteredTokenTransfers(),filter:tokenTransferFilter,hasMore:Boolean(tokenTransferNext),loading:tokenTransferLoading,error:tokenTransferLoadError,generatedAt:new Date().toISOString()});if(!report)return;const panel=document.querySelector('#insight-report');renderReport(panel,report);panel.hidden=false;document.querySelector('#insight-print').disabled=false;});
+document.querySelector('#insight-print').addEventListener('click',()=>{if(!document.querySelector('#insight-report').hidden&&!addressResult.hidden&&!tokenTransferLoading&&!tokenTransferLoadError)window.print();});
 </script><script type="module" src="./token-balances.mjs" integrity="sha256-Ekwic+6THKB2NiYX9xijX+pDXbOKFKiOn3QwxHUNC4c="></script></body></html>

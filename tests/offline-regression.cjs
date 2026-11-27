@@ -1042,7 +1042,19 @@ const path = require('node:path');
       throw new Error('CSV all-transfers export regression failed: ' + JSON.stringify(allCsv));
     }
 
+    await page.locator('#insight-create').click();
+    if (!(await page.locator('#insight-report').isVisible()) ||
+        !(await page.locator('#insight-report').innerText()).includes('Загружено записей: 2') ||
+        await page.locator('#insight-print').isDisabled()) {
+      throw new Error('Insight report preview regression');
+    }
+    await page.evaluate(() => { window.print = () => { window.__insightPrinted = true; }; });
+    await page.locator('#insight-print').click();
+    if (!(await page.evaluate(() => window.__insightPrinted))) throw new Error('Insight print action failed');
     await page.locator('[data-token-filter="incoming"]').click();
+    if (await page.locator('#insight-report').isVisible() || !(await page.locator('#insight-print').isDisabled())) {
+      throw new Error('Stale insight report survived filter change');
+    }
     await page.waitForFunction(() => typeof window.__finishIncomingTransferResponse === 'function');
     if (!(await page.locator('#token-export').isDisabled()) ||
         (await page.locator('#token-export-status').innerText()).trim() !== '') {
