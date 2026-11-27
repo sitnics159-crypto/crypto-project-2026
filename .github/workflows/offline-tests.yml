@@ -27,7 +27,7 @@ jobs:
         with:
           node-version: 22
       - name: Run Blockscout server unit tests
-        run: node --test tests/blockscout-sepolia.test.mjs
+        run: node --test tests/blockscout-sepolia.test.mjs tests/blockscout-shared-rate-limit.test.mjs
       - name: Install pinned Playwright
         run: |
           npm ci --ignore-scripts
