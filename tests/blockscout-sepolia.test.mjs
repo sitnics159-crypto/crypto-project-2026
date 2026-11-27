@@ -140,3 +140,17 @@ test('forwards the Pro transaction history cursor and rejects malformed fields',
   assert.equal((await handle(request('/addresses/' + address + '/token-transfers?fee=1'))).status, 400);
   assert.equal(calls, 1);
 });
+
+test('returns a numeric retry delay for provider rate limits without leaking headers', async () => {
+  for (const [retry, expected] of [['15', '15'], ['0', '1'], ['invalid', '1'], [null, '1']]) {
+    const headers = { 'x-provider-private': 'mock-key' };
+    if (retry !== null) headers['retry-after'] = retry;
+    const handle = createBlockscoutHandler({ apiKey: 'mock-key', fetchUpstream: async () =>
+      new Response('private details', { status: 429, headers }) });
+    const response = await handle(request('/tokens/' + address));
+    assert.equal(response.status, 429);
+    assert.equal(response.headers.get('retry-after'), expected);
+    assert.equal(response.headers.get('x-provider-private'), null);
+    assert.doesNotMatch(await response.text(), /mock-key|private details/);
+  }
+});

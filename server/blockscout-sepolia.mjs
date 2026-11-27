@@ -67,7 +67,11 @@ export function createBlockscoutHandler({ apiKey, fetchUpstream = fetch, now = D
         signal: AbortSignal.any([request.signal, AbortSignal.timeout(10000)])
       });
       if (response.status === 404) return failure(404, 'Data not found');
-      if (response.status === 429) return failure(429, 'Provider rate limit reached');
+      if (response.status === 429) {
+        const retry = response.headers.get('retry-after');
+        const seconds = retry && /^\d{1,10}$/.test(retry) ? Math.max(1, Number(retry)) : 1;
+        return failure(429, 'Provider rate limit reached', { 'retry-after': String(seconds) });
+      }
       if (!response.ok) return failure(502, 'Provider request failed');
       return Response.json(await response.json(), { headers: { 'cache-control': 'no-store' } });
     } catch {
