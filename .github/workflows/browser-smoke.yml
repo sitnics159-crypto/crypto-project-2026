@@ -41,7 +41,9 @@ jobs:
       - name: Check the reserve preview without Kraken
         if: github.event_name == 'workflow_dispatch' || github.head_ref == 'release/snapshot-without-kraken-2026-11-27'
         run: |
-          node scripts/build-without-kraken.mjs index.html preview-without-kraken.html
+          mkdir reserve-preview
+          node scripts/build-without-kraken.mjs index.html reserve-preview/index.html
+          install -m 644 token-balances.mjs reserve-preview/token-balances.mjs
           node <<'JS'
           const assert = require('node:assert/strict');
           const { readFileSync } = require('node:fs');
@@ -58,7 +60,7 @@ jobs:
               page.on('pageerror', error => errors.push(error.message));
               const address = '0xd482cCc8EC97e9cA7a365F2403bf7f228aD149A0';
               const tx = '0x8e37e589d8d0b2552bd3359860f4d157ce2f8e7a4d7c3969e933c75a949a443d';
-              const preview = 'http://127.0.0.1:4173/preview-without-kraken.html';
+              const preview = 'http://127.0.0.1:4173/reserve-preview/';
 
               await page.goto(preview + '?tx=' + tx);
               await page.locator('#result').waitFor({ timeout: 25000 });
@@ -126,6 +128,14 @@ jobs:
           })().catch(error => { console.error(error); process.exitCode = 1; });
           JS
 
+      - name: Upload the verified reserve preview
+        if: github.event_name == 'workflow_dispatch' || github.head_ref == 'release/snapshot-without-kraken-2026-11-27'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sepolia-reserve-without-kraken-${{ github.run_id }}-${{ github.run_attempt }}
+          path: reserve-preview/
+          if-no-files-found: error
+          retention-days: 35
       - name: Test page against live Sepolia and Kraken APIs
         run: |
           node <<'JS'
