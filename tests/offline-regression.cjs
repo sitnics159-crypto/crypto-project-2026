@@ -374,6 +374,11 @@ const path = require('node:path');
           if (mode === 'incomplete') {
             return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
           }
+          if (mode === 'mismatched-address') {
+            return Promise.resolve({ ok: true, status: 200, json: async () => ({
+              hash: '0x' + 'b'.repeat(40), coin_balance: '0', is_contract: false
+            }) });
+          }
           const status = mode === 'rate-limit' ? apiErrorFixture.rateLimit.status :
             mode === 'not-found' ? 404 : apiErrorFixture.serverError.status;
           return Promise.resolve({ ok: false, status, json: async () => ({}) });
@@ -392,6 +397,8 @@ const path = require('node:path');
       try {
         const notFound = await run('not-found');
         const incomplete = await run('incomplete');
+        const mismatchedAddress = await run('mismatched-address');
+        if (!addressResult.hidden) throw new Error('Mismatched address response was rendered');
         const rateLimit = await run('rate-limit');
         const serverError = await run('server-error');
         const failedState = {
@@ -417,7 +424,7 @@ const path = require('node:path');
             });
           }
           return new Response(JSON.stringify({
-            hash: address, coin_balance: '0', is_contract: false,
+            hash: '0x' + address.slice(2).toUpperCase(), coin_balance: '0', is_contract: false,
             is_scam: false, has_tokens: false, has_token_transfers: false
           }), { status: 200, headers: { 'Content-Type': 'application/json' } });
         };
@@ -434,7 +441,7 @@ const path = require('node:path');
           loadingHidden: addressLoading.hidden,
           requestCount: recoveryRequests
         };
-        return { notFound, incomplete, rateLimit, serverError, timeout, failedState, recoveredState };
+        return { notFound, incomplete, mismatchedAddress, rateLimit, serverError, timeout, failedState, recoveredState };
       } finally {
         window.fetch = originalFetch;
         window.setTimeout = originalSetTimeout;
@@ -442,6 +449,7 @@ const path = require('node:path');
     }, apiErrorFixture);
     if (!apiErrors.notFound.includes('Адрес не найден в Sepolia') ||
         !apiErrors.incomplete.includes('Источник вернул неполные данные') ||
+        !apiErrors.mismatchedAddress.includes('Источник вернул неполные данные') ||
         !apiErrors.rateLimit.includes(apiErrorFixture.rateLimit.expected) ||
         !apiErrors.serverError.includes(apiErrorFixture.serverError.expected) ||
         !apiErrors.timeout.includes(apiErrorFixture.timeout.expected) ||
@@ -545,7 +553,10 @@ const path = require('node:path');
       try {
         for (const item of fixture.transactions) {
           window.fetch = async () => ({
-            ok: true, status: 200, json: async () => item.data
+            ok: true, status: 200, json: async () => ({
+              ...item.data,
+              hash: '0x' + item.data.hash.slice(2).toUpperCase()
+            })
           });
           await submit(fixture.hash);
           const actual = {
@@ -577,7 +588,13 @@ const path = require('node:path');
           { name: 'not-found', status: 404, expected: fixture.errors.notFound },
           { name: 'rate-limit', status: 429, expected: fixture.errors.rateLimit },
           { name: 'server', status: 503, expected: fixture.errors.server },
-          { name: 'incomplete', status: 200, body: {}, expected: fixture.errors.incomplete }
+          { name: 'incomplete', status: 200, body: {}, expected: fixture.errors.incomplete },
+          {
+            name: 'mismatched-hash',
+            status: 200,
+            body: { ...fixture.transactions[0].data, hash: fixture.hash.slice(0, -1) + (fixture.hash.endsWith('0') ? '1' : '0') },
+            expected: fixture.errors.incomplete
+          }
         ];
         const errors = {};
         for (const item of errorCases) {
