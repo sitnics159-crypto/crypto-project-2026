@@ -51,11 +51,36 @@ try {
   await balance.waitFor({ timeout: 20000 });
   assert.match(await balance.innerText(), / · \d+(?:\.\d+)?$/);
 
-  await page.locator('#address-token-transfers .token-transfer').first().waitFor({ timeout: 20000 });
+  const transferRows = page.locator('#address-token-transfers .token-transfer');
+  const transferStatus = page.locator('#token-list-status');
+  const loadTransfers = page.locator('#token-load-more');
+  await transferRows.first().waitFor({ timeout: 20000 });
+  const initialCount = Number((await transferStatus.innerText()).match(/из (\d+) загруженных переводов/)?.[1]);
+  assert.ok(initialCount > 0, 'Expected a first page of ERC-20 transfers.');
+  for (let i = await transferRows.count(); i < initialCount; i += 5) await loadTransfers.click();
+  const [secondTransfers] = await Promise.all([
+    page.waitForResponse(response => {
+      const url = new URL(response.url());
+      return url.pathname.endsWith('/token-transfers') && url.searchParams.has('block_number');
+    }, { timeout: 20000 }),
+    loadTransfers.click()
+  ]);
+  assert.equal(secondTransfers.status(), 200);
+  await page.waitForFunction(count => {
+    const label = document.querySelector('#token-list-status').textContent;
+    return Number(label.match(/из (\d+) загруженных переводов/)?.[1]) > count;
+  }, initialCount, { timeout: 10000 });
+  const loadedCount = Number((await transferStatus.innerText()).match(/из (\d+) загруженных переводов/)?.[1]);
+
   const [download] = await Promise.all([page.waitForEvent('download'), page.locator('#token-export').click()]);
   const csv = readFileSync(await download.path(), 'utf8');
   assert.match(csv.split(/\r?\n/, 1)[0], /amount_raw/);
-  assert.ok(csv.trim().split(/\r?\n/).length > 1, 'The CSV must include at least one transfer.');
+  // Export fields are quoted. Match an entire record so a newline inside a token name is not a row.
+  const records = [...csv.matchAll(/^"(0x[0-9a-f]{64})","(\d+)"(?:,"(?:[^"]|"")*"){11}\r?$/gim)];
+  const exportedEvents = new Set(records.map(([, txHash, logIndex]) => txHash.toLowerCase() + ':' + logIndex));
+  assert.equal(records.length, loadedCount, 'CSV must export every loaded transfer.');
+  assert.equal(exportedEvents.size, loadedCount, 'CSV must not repeat a transfer event.');
+  console.log('CSV included all ' + loadedCount + ' unique ERC-20 transfers from two pages.');
   const historyRows = page.locator('#address-transactions .tx-row');
   const loadHistory = page.locator('#address-tx-load-more');
   const visibleCount = await historyRows.count();
