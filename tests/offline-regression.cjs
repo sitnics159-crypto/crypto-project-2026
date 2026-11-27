@@ -477,7 +477,8 @@ const path = require('node:path');
       let attempts = 0;
       window.fetch = async (url, options) => {
         if (!String(url).endsWith('/token-balances')) return originalFetch(url, options);
-        if (++attempts === 1) return new Response('{}', { status: 503 });
+        if (++attempts === 1) return new Response('{}', { status: 429 });
+        if (attempts === 2) return new Response('{}', { status: 503 });
         window.fetch = originalFetch;
         return new Response(JSON.stringify([{
           value: '123456789012345678901234567890',
@@ -485,6 +486,8 @@ const path = require('node:path');
         }]));
       };
     });
+    await loadBalances.click();
+    await balanceStatus.filter({ hasText: 'Слишком много запросов' }).waitFor();
     await loadBalances.click();
     await balanceStatus.filter({ hasText: 'Попробуйте ещё раз' }).waitFor();
     if (!(await page.locator('#address-result').isVisible())) {
