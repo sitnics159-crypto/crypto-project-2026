@@ -62,7 +62,7 @@ const path = require('node:path');
       throw new Error('Expected one inline application script and a meta CSP policy');
     }
     const expectedScriptHash = "'sha256-" +
-      crypto.createHash('sha256').update(inlineScripts[0][1], 'utf8').digest('base64') + "'";
+      crypto.createHash('sha256').update(inlineScripts[0][1].replace(/\r\n?/g, '\n'), 'utf8').digest('base64') + "'";
     const cspDirectives = new Map(cspMatch[1].split(';').map(part => {
       const [name, ...values] = part.trim().split(/\s+/);
       return [name, values.join(' ')];
