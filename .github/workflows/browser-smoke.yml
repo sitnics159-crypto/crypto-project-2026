@@ -258,6 +258,10 @@ jobs:
                 console.log('Known address has no ERC-20 records in current Blockscout response; row-dependent ERC-20 checks will be skipped.');
               }
 
+              // The API intentionally limits Blockscout requests to five per rolling second.
+              // Let the address, balance and transfer checks leave that window before
+              // exercising the independent token-metadata fallback request.
+              await page.waitForTimeout(1100);
               const resolvedDecimals = await page.evaluate(async () => resolveTokenDecimals({
                 token: { address_hash: '0x50B1eF6e0fe05a32F3E63F02f3c0151BD9004C7c' },
                 total: { value: '1000000000000000000' }
