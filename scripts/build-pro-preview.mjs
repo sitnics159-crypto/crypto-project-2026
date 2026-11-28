@@ -17,7 +17,7 @@ export function buildProPreview(sourceHtml, sourceModule) {
   if (!originalScript?.includes(publicApi) || !sourceModule.includes(publicApi) ||
       !html.includes("script-src '" + hash(originalScript) + "' '" + originalModuleHash + "'") ||
       !html.includes('src="./token-balances.mjs" integrity="' + originalModuleHash + '"') ||
-      !html.includes('connect-src ' + publicOrigin + ' https://api.kraken.com ' + renderOrigin + ';')) {
+      !html.includes('connect-src https://api.kraken.com ' + renderOrigin + ';')) {
     throw new Error('Expected the current Sepolia API URLs, CSP, and balance module integrity.');
   }
 
@@ -26,7 +26,7 @@ export function buildProPreview(sourceHtml, sourceModule) {
   const indexHtml = html.replace(originalScript, () => script)
     .replace(hash(originalScript), hash(script))
     .replaceAll(originalModuleHash, hash(balanceModule))
-    .replace('connect-src ' + publicOrigin + ' https://api.kraken.com ' + renderOrigin + ';', "connect-src 'self' https://api.kraken.com;");
+    .replace('connect-src https://api.kraken.com ' + renderOrigin + ';', "connect-src 'self' https://api.kraken.com;");
   if (indexHtml.includes(publicApi) || balanceModule.includes(publicApi) ||
       indexHtml.includes(publicOrigin + '/api/v2/') || balanceModule.includes(publicOrigin + '/api/v2/')) {
     throw new Error('The preview still contains a direct Sepolia API URL.');
