@@ -477,7 +477,8 @@ const path = require('node:path');
       let attempts = 0;
       window.fetch = async (url, options) => {
         if (!String(url).endsWith('/token-balances')) return originalFetch(url, options);
-        if (++attempts === 1) return new Response('{}', { status: 503 });
+        if (++attempts === 1) return new Response('{}', { status: 429, headers: { 'retry-after': '2' } });
+        if (attempts === 2) return new Response('{}', { status: 503 });
         window.fetch = originalFetch;
         return new Response(JSON.stringify([{
           value: '123456789012345678901234567890',
@@ -486,9 +487,17 @@ const path = require('node:path');
       };
     });
     await loadBalances.click();
-    await balanceStatus.filter({ hasText: 'Попробуйте ещё раз' }).waitFor();
+    await balanceStatus.filter({ hasText: 'ограничил частоту запросов' }).waitFor();
     if (!(await page.locator('#address-result').isVisible())) {
-      throw new Error('Balance API failure hid the address overview');
+      throw new Error('HTTP 429 balance response hid the address overview');
+    }
+    if (!(await balanceStatus.innerText()).includes('2 сек.')) {
+      throw new Error('HTTP 429 balance response did not respect Retry-After');
+    }
+    await loadBalances.click();
+    await balanceStatus.filter({ hasText: 'временно недоступен' }).waitFor();
+    if (!(await page.locator('#address-result').isVisible())) {
+      throw new Error('HTTP 503 balance response hid the address overview');
     }
     await loadBalances.click();
     await page.locator('#token-balances-list li').filter({ hasText: '<TEST>' })

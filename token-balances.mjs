@@ -42,10 +42,40 @@ export function normalizeTokenBalances(payload) {
   return { balances, incomplete };
 }
 
+export class TokenBalanceHttpError extends Error {
+  constructor(status, retryAfter) {
+    super('Token balance HTTP ' + status);
+    this.name = 'TokenBalanceHttpError';
+    this.status = status;
+    this.retryAfter = retryAfter;
+  }
+}
+
+export function tokenBalanceErrorMessage(error) {
+  if (error?.status === 429) {
+    const seconds = typeof error.retryAfter === 'number' && Number.isFinite(error.retryAfter)
+      ? Math.min(3600, Math.max(1, Math.ceil(error.retryAfter))) : null;
+    return seconds
+      ? 'Сервис временно ограничил частоту запросов. Подождите ' + seconds + ' сек. и повторите загрузку.'
+      : 'Сервис временно ограничил частоту запросов. Повторите загрузку немного позже.';
+  }
+  if (error?.status === 503) {
+    return 'Сервис данных Sepolia временно недоступен. Повторите попытку позже.';
+  }
+  if (error?.status === 502) {
+    return 'Источник данных Sepolia временно не отвечает. Повторите попытку позже.';
+  }
+  return 'Балансы временно недоступны. Попробуйте ещё раз.';
+}
+
 export async function fetchTokenBalances(address, { signal, fetcher = globalThis.fetch } = {}) {
   if (typeof address !== 'string' || !/^0x[0-9a-fA-F]{40}$/.test(address)) throw new TypeError('Invalid address');
   const response = await fetcher('https://crypto-project-2026.onrender.com/api/sepolia/addresses/' + encodeURIComponent(address) + '/token-balances', { signal, headers: { Accept: 'application/json' }, credentials: 'omit', redirect: 'error' });
-  if (!response.ok) throw new Error('Token balance HTTP ' + response.status);
+  if (!response.ok) {
+    const retryValue = response.headers?.get?.('retry-after');
+    const retryAfter = retryValue && /^\d{1,10}$/.test(retryValue) ? Number(retryValue) : null;
+    throw new TokenBalanceHttpError(response.status, retryAfter);
+  }
   return normalizeTokenBalances(await response.json());
 }
 
@@ -82,8 +112,8 @@ if (typeof document !== 'undefined') {
       }
       status.textContent = incomplete ? 'Blockscout вернул неполные данные о балансах.'
         : balances.length ? 'Балансы загружены.' : 'Blockscout не вернул балансы ERC‑20.';
-    } catch {
-      if (pending === controller) status.textContent = 'Балансы недоступны. Попробуйте ещё раз.';
+    } catch (error) {
+      if (pending === controller) status.textContent = tokenBalanceErrorMessage(error);
     } finally {
       clearTimeout(timeout);
       if (pending === controller) {
