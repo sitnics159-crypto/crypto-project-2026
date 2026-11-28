@@ -8,6 +8,12 @@ export function createSepoliaHttpServer({ preview, ...options } = {}) {
   const handle = createBlockscoutHandler(options);
   const modules = new Map([['/token-balances.mjs', preview?.balanceModule], ['/insight-report.mjs', preview?.insightReport], ['/insight-report-view.mjs', preview?.insightReportView]]);
   return createServer(async (incoming, outgoing) => {
+    if (incoming.url?.startsWith('/api/sepolia/')) {
+      outgoing.setHeader('Vary', 'Origin');
+      if (incoming.headers.origin === 'https://sitnics159-crypto.github.io') {
+        outgoing.setHeader('Access-Control-Allow-Origin', 'https://sitnics159-crypto.github.io');
+      }
+    }
     if (incoming.method !== 'GET') {
       outgoing.writeHead(405, { allow: 'GET', 'cache-control': 'no-store' }).end();
       return;
