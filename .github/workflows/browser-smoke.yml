@@ -209,6 +209,7 @@ jobs:
               );
               const error = await page.locator('#address-error').innerText();
               if (!(await page.locator('#address-result').isVisible())) {
+                console.error('Render API responses before address lookup failure:', JSON.stringify(apiResponses));
                 throw new Error('Address lookup failed: ' + error);
               }
               const balanceResponse = page.waitForResponse(response =>
