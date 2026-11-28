@@ -13,7 +13,8 @@ test('routes allowlisted Sepolia read operations to the fixed provider and authe
     '/transactions/' + hash + '/logs', '/addresses/' + address, '/addresses/' + address + '/transactions?index=1',
     '/addresses/' + address + '/token-transfers?type=ERC-20&filter=from&block_number=100', '/tokens/' + address];
   const calls = [];
-  const handle = createBlockscoutHandler({ apiKey: 'mock-key', fetchUpstream: async (url, options) => {
+  let time = 0;
+  const handle = createBlockscoutHandler({ apiKey: 'mock-key', now: () => time += 1000, fetchUpstream: async (url, options) => {
     calls.push(url);
     assert.equal(options.redirect, 'error');
     assert.equal(url.searchParams.get('apikey'), 'mock-key');
