@@ -19,6 +19,9 @@ test('Sepolia API CORS is restricted to the Pages origin', async (t) => {
   assert.equal(health.status, 200);
   assert.equal(health.headers.get('access-control-allow-origin'), null);
   assert.deepEqual(await health.json(), { status: 'ok' });
+  const healthWithQuery = await fetch(base + '/healthz?utm_source=chatgpt.com');
+  assert.equal(healthWithQuery.status, 200);
+  assert.deepEqual(await healthWithQuery.json(), { status: 'ok' });
   const rejected = await fetch(base + path, { method: 'POST', headers: { Origin: allowed } });
   assert.equal(rejected.status, 405);
   assert.equal(rejected.headers.get('access-control-allow-origin'), allowed);

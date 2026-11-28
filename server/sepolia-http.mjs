@@ -20,7 +20,7 @@ export function createSepoliaHttpServer({ preview, ...options } = {}) {
     }
     const target = incoming.url;
     const path = target?.split('?', 1)[0];
-    if (target === '/healthz') {
+    if (path === '/healthz') {
       outgoing.writeHead(200, {
         'content-type': 'application/json; charset=utf-8',
         'cache-control': 'no-store',
