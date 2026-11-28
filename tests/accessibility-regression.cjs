@@ -174,37 +174,37 @@ const axe = require('axe-core');
       token: { address_hash: '0x' + 'f'.repeat(40), symbol: 'TEST', decimals: '6' },
       total: { value: '1250000', decimals: '6' }, block_number: 12345
     };
-    await page.route('https://eth-sepolia.blockscout.com/**', async route => {
+    await page.route('https://crypto-project-2026.onrender.com/**', async route => {
       const url = new URL(route.request().url());
       const json = body => route.fulfill({
         status: 200, contentType: 'application/json', body: JSON.stringify(body)
       });
-      if (url.pathname === '/api/v2/transactions/' + fixtureTxHash) {
+      if (url.pathname === '/api/sepolia/transactions/' + fixtureTxHash) {
         await new Promise(resolve => setTimeout(resolve, 350));
         return json(fixtureTx);
       }
-      if (url.pathname === '/api/v2/addresses/' + fixtureAddress) {
+      if (url.pathname === '/api/sepolia/addresses/' + fixtureAddress) {
         await new Promise(resolve => setTimeout(resolve, 350));
         return json({
           hash: fixtureAddress, coin_balance: '2500000000000000000',
           is_contract: false, is_scam: false, has_tokens: true, has_token_transfers: true
         });
       }
-      if (url.pathname === '/api/v2/addresses/' + fixtureAddress + '/transactions') {
+      if (url.pathname === '/api/sepolia/addresses/' + fixtureAddress + '/transactions') {
         if (url.searchParams.has('block_number')) {
           await new Promise(resolve => setTimeout(resolve, 350));
           return json({ items: [{ ...fixtureTx, hash: '0x' + '9'.repeat(64), block_number: 12344 }], next_page_params: null });
         }
         return json({ items: [fixtureTx], next_page_params: { block_number: 12344, index: 0 } });
       }
-      if (url.pathname === '/api/v2/addresses/' + fixtureAddress + '/token-transfers') {
+      if (url.pathname === '/api/sepolia/addresses/' + fixtureAddress + '/token-transfers') {
         if (url.searchParams.has('block_number')) {
           await new Promise(resolve => setTimeout(resolve, 350));
           return json({ items: [{ ...fixtureTokenTransfer, transaction_hash: '0x' + '8'.repeat(64), block_number: 12344 }], next_page_params: null });
         }
         return json({ items: [fixtureTokenTransfer], next_page_params: { block_number: 12344, index: 0 } });
       }
-      if (url.pathname === '/api/v2/addresses/' + fixtureAddress + '/token-balances') {
+      if (url.pathname === '/api/sepolia/addresses/' + fixtureAddress + '/token-balances') {
         return json([{
           value: ((1n << 256n) - 1n).toString(),
           token: { type: 'ERC-20', address_hash: '0x' + 'f'.repeat(40), symbol: 'T'.repeat(80), decimals: '0' }

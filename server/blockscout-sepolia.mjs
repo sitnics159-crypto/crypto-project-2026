@@ -2,6 +2,8 @@ const upstreamBase = 'https://api.blockscout.com/11155111/api/v2';
 const address = '0x[0-9a-fA-F]{40}';
 const routes = [
   { pattern: new RegExp('^/transactions/0x[0-9a-fA-F]{64}$'), query: [] },
+  { pattern: new RegExp('^/transactions/0x[0-9a-fA-F]{64}/token-transfers$'), query: ['type'] },
+  { pattern: new RegExp('^/transactions/0x[0-9a-fA-F]{64}/logs$'), query: [] },
   { pattern: new RegExp('^/addresses/' + address + '$'), query: [] },
   { pattern: new RegExp('^/addresses/' + address + '/transactions$'), query: ['block_number', 'index', 'items_count', 'fee', 'hash', 'inserted_at', 'value'] },
   { pattern: new RegExp('^/addresses/' + address + '/token-transfers$'), query: ['type', 'filter', 'block_number', 'index', 'log_index', 'items_count'] },

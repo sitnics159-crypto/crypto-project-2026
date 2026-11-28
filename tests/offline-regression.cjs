@@ -86,7 +86,7 @@ const path = require('node:path');
     if (!scriptSources.includes(expectedScriptHash) || scriptSources.includes("'unsafe-inline'")) {
       throw new Error('CSP must authorize the app only by its current inline-script hash');
     }
-    if (connectSources !== 'https://eth-sepolia.blockscout.com https://api.kraken.com https://crypto-project-2026.onrender.com') {
+    if (connectSources !== 'https://api.kraken.com https://crypto-project-2026.onrender.com') {
       throw new Error('CSP connect-src must stay limited to the fixed public API origins');
     }
     console.log('Static CSP hash and restrictive directives passed');
@@ -199,7 +199,7 @@ const path = require('node:path');
       const originalFetch = window.fetch;
       let metadataAttempts = 0;
       window.fetch = async (url, options) => {
-        if (String(url).includes('/api/v2/tokens/' + retryAddress)) {
+        if (String(url).includes('/api/sepolia/tokens/' + retryAddress)) {
           metadataAttempts++;
           if (metadataAttempts === 1) return { ok: false, status: 503, json: async () => ({}) };
           return { ok: true, status: 200, json: async () => ({ decimals: '18' }) };
@@ -519,10 +519,10 @@ const path = require('node:path');
             oldSignal = options.signal;
             return new Promise(resolve => { resolveOld = resolve; });
           }
-          if (path === '/api/v2/addresses/' + nextAddress) {
+          if (path === '/api/sepolia/addresses/' + nextAddress) {
             return Response.json({ hash: nextAddress, coin_balance: '0' });
           }
-          if (path.startsWith('/api/v2/addresses/' + nextAddress + '/')) {
+          if (path.startsWith('/api/sepolia/addresses/' + nextAddress + '/')) {
             return Response.json({ items: [], next_page_params: null });
           }
           return originalFetch(url, options);
@@ -872,7 +872,7 @@ const path = require('node:path');
       const originalFetch = window.fetch.bind(window);
       window.__shareableLookupFetches = 0;
       window.fetch = (url, options) => {
-        if (String(url).includes('/api/v2/transactions/' + hash)) {
+        if (String(url).includes('/api/sepolia/transactions/' + hash)) {
           window.__shareableLookupFetches++;
           return Promise.resolve(new Response(JSON.stringify(transaction), {
             status: 200,
@@ -913,7 +913,7 @@ const path = require('node:path');
       window.__shareableAddressFetches = [];
       window.fetch = (url, options) => {
         const target = String(url);
-        const base = 'https://eth-sepolia.blockscout.com/api/v2/addresses/' + address;
+        const base = 'https://crypto-project-2026.onrender.com/api/sepolia/addresses/' + address;
         if (target === base || target === base + '/transactions' ||
             target.startsWith(base + '/token-transfers?')) {
           window.__shareableAddressFetches.push(target);
@@ -1102,7 +1102,7 @@ const path = require('node:path');
       let capturedBlob = null;
       let capturedFilename = '';
       window.fetch = async url => {
-        if (String(url).includes('/api/v2/tokens/' + tokenAddress)) {
+        if (String(url).includes('/api/sepolia/tokens/' + tokenAddress)) {
           metadataStartedResolve();
           return new Promise(resolve => {
             releaseMetadata = () => resolve(new Response(JSON.stringify({ decimals: '6' }), {
@@ -1194,12 +1194,12 @@ const path = require('node:path');
       };
       window.fetch = async (url, options = {}) => {
         const parsed = new URL(String(url));
-        const base = 'https://eth-sepolia.blockscout.com/api/v2/addresses/' + address;
+        const base = 'https://crypto-project-2026.onrender.com/api/sepolia/addresses/' + address;
         if (parsed.href === base) return response(200, {
           hash: address, coin_balance: '0', is_contract: false,
           is_scam: false, has_tokens: true, has_token_transfers: true
         });
-        if (parsed.pathname === '/api/v2/addresses/' + address + '/transactions') {
+        if (parsed.pathname === '/api/sepolia/addresses/' + address + '/transactions') {
           if (!parsed.searchParams.has('block_number')) return response(200, {
             items: [{ hash: txFirst, value: '1', block_number: 10 }],
             next_page_params: { block_number: 9, index: 0 }
@@ -1210,7 +1210,7 @@ const path = require('node:path');
             next_page_params: null
           });
         }
-        if (parsed.pathname === '/api/v2/addresses/' + address + '/token-transfers') {
+        if (parsed.pathname === '/api/sepolia/addresses/' + address + '/token-transfers') {
           const filter = parsed.searchParams.get('filter') || 'all';
           const paged = parsed.searchParams.has('block_number');
           tokenFilterRequests.push({ filter, paged, type: parsed.searchParams.get('type') });
@@ -1396,7 +1396,7 @@ const path = require('node:path');
       };
       window.__untrustedApiExecuted = 0;
       window.fetch = async url => {
-        if (String(url).includes('/api/v2/transactions/' + hash)) {
+        if (String(url).includes('/api/sepolia/transactions/' + hash)) {
           return new Response(JSON.stringify(transaction), { status: 200, headers: { 'Content-Type': 'application/json' } });
         }
         return originalFetch(url);
