@@ -86,7 +86,7 @@ const path = require('node:path');
     if (!scriptSources.includes(expectedScriptHash) || scriptSources.includes("'unsafe-inline'")) {
       throw new Error('CSP must authorize the app only by its current inline-script hash');
     }
-    if (connectSources !== 'https://eth-sepolia.blockscout.com https://api.kraken.com') {
+    if (connectSources !== 'https://eth-sepolia.blockscout.com https://api.kraken.com https://crypto-project-2026.onrender.com') {
       throw new Error('CSP connect-src must stay limited to the fixed public API origins');
     }
     console.log('Static CSP hash and restrictive directives passed');
