@@ -262,7 +262,10 @@ jobs:
                 total: { value: '1000000000000000000' }
               }));
               console.log('Metadata fallback decimals:', resolvedDecimals);
-              if (resolvedDecimals !== 18) throw new Error('Token metadata decimals fallback failed: ' + resolvedDecimals);
+              if (resolvedDecimals !== 18) {
+                console.error('Render API responses before metadata fallback failure:', JSON.stringify(apiResponses));
+                throw new Error('Token metadata decimals fallback failed: ' + resolvedDecimals);
+              }
 
               const tokenRequest = apiResponses.find(item =>
                 item.url.includes('/token-transfers?') && item.url.includes('type=ERC-20'));
