@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeTokenBalance, normalizeTokenBalances, fetchTokenBalances } from './token-balances.mjs';
+import { normalizeTokenBalance, normalizeTokenBalances, fetchTokenBalances, TokenBalanceHttpError, tokenBalanceErrorMessage } from './token-balances.mjs';
 const record = (value, decimals = '18') => ({value, token: {type:'ERC-20', address_hash:'0x'+'a'.repeat(40), symbol:'TEST', decimals}});
 test('exact large balance', () => assert.equal(normalizeTokenBalance(record('123456789012345678901234567890')).amount,'123456789012.34567890123456789'));
 test('zero balance', () => assert.equal(normalizeTokenBalance(record('0')).amount,'0'));
@@ -32,5 +32,31 @@ test('a case-insensitive duplicate can recover an unknown amount', () => {
 });
 test('API request uses Sepolia and omits credentials',async()=>{const address='0x'+'b'.repeat(40),signal=new AbortController().signal;const r=await fetchTokenBalances(address,{signal,fetcher:async(url,options)=>{assert.equal(url,'https://crypto-project-2026.onrender.com/api/sepolia/addresses/'+address+'/token-balances');assert.equal(options.signal,signal);assert.equal(options.credentials,'omit');assert.equal(options.redirect,'error');return {ok:true,json:async()=>[record('1')]};}});assert.equal(r.balances.length,1);});
 test('API rejects invalid address without request',async()=>{await assert.rejects(fetchTokenBalances('invalid',{fetcher:()=>assert.fail('unexpected request')}),TypeError);});
-test('API HTTP failure is not zero balance',async()=>{await assert.rejects(fetchTokenBalances('0x'+'b'.repeat(40),{fetcher:async()=>({ok:false,status:429})}),/429/);});
+test('HTTP 429 preserves Retry-After and explains rate limiting', async () => {
+  const address = '0x' + 'b'.repeat(40);
+  const error = await assert.rejects(fetchTokenBalances(address, {
+    fetcher: async () => ({ ok: false, status: 429, headers: { get: name => name === 'retry-after' ? '2' : null } })
+  }));
+  assert.ok(error instanceof TokenBalanceHttpError);
+  assert.equal(error.status, 429);
+  assert.equal(error.retryAfter, 2);
+  assert.match(tokenBalanceErrorMessage(error), /ограничил частоту запросов/);
+  assert.match(tokenBalanceErrorMessage(error), /2 сек\./);
+});
+test('HTTP 503 and 502 have distinct temporary outage messages', async () => {
+  const address = '0x' + 'b'.repeat(40);
+  const unavailable = await assert.rejects(fetchTokenBalances(address, {
+    fetcher: async () => ({ ok: false, status: 503 })
+  }));
+  const upstream = await assert.rejects(fetchTokenBalances(address, {
+    fetcher: async () => ({ ok: false, status: 502 })
+  }));
+  assert.equal(unavailable.status, 503);
+  assert.equal(upstream.status, 502);
+  assert.match(tokenBalanceErrorMessage(unavailable), /временно недоступен/);
+  assert.match(tokenBalanceErrorMessage(upstream), /Источник данных Sepolia временно не отвечает/);
+});
+test('unknown HTTP failure remains a safe retry message', () => {
+  assert.match(tokenBalanceErrorMessage(new TokenBalanceHttpError(418, null)), /Попробуйте ещё раз/);
+});
 test('API cancellation propagates',async()=>{const error=new Error('aborted');await assert.rejects(fetchTokenBalances('0x'+'b'.repeat(40),{fetcher:async()=>{throw error;}}),e=>e===error);});
