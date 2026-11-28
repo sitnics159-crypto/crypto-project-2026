@@ -60,7 +60,7 @@ jobs:
             const browser = await chromium.launch();
             try {
               const page = await browser.newPage({ acceptDownloads: true });
-              const api = 'eth-sepolia.blockscout.com';
+              const api = 'crypto-project-2026.onrender.com';
               const requests = [];
               const errors = [];
               page.on('request', request => requests.push(new URL(request.url()).hostname));
@@ -124,8 +124,8 @@ jobs:
                 assert.ok(to && to.toLowerCase() !== address.toLowerCase());
               }
               console.log('Filtered CSV contains only outgoing ERC-20 transfers');
-              assert.ok(requests.includes(api), 'Expected Blockscout requests');
-              assert.deepEqual([...new Set(requests)].sort(), ['127.0.0.1', api]);
+              assert.ok(requests.includes(api), 'Expected Render API requests');
+              assert.deepEqual([...new Set(requests)].sort(), ['127.0.0.1', api].sort());
               assert.deepEqual(errors, []);
               console.log('Known address rendered; ERC-20 CSV rows:', lines.length - 1);
               console.log('Request hosts:', [...new Set(requests)].join(', '));
@@ -154,7 +154,7 @@ jobs:
             const page = await browser.newPage({ acceptDownloads: true });
             const apiResponses = [];
             page.on('response', response => {
-              if (response.url().includes('eth-sepolia.blockscout.com/api/v2/') ||
+              if (response.url().includes('crypto-project-2026.onrender.com/api/sepolia/') ||
                   response.url().includes('api.kraken.com/0/public/')) {
                 apiResponses.push({ url: response.url(), status: response.status() });
             if (response.url().includes('/token-transfers?')) {
@@ -323,7 +323,7 @@ jobs:
                 fee: document.querySelector('#r-fee').textContent.trim()
               }));
               const transactionRequest = apiResponses.find(item =>
-                item.url.includes('/api/v2/transactions/' + txHash)
+                item.url.includes('/api/sepolia/transactions/' + txHash)
               );
               if (!transactionLookup.resultVisible || transactionLookup.errorVisible ||
                   transactionLookup.displayedHash.toLowerCase() !== txHash.toLowerCase() ||
