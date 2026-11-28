@@ -4,7 +4,8 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const publicOrigin = 'https://eth-sepolia.blockscout.com';
-const publicApi = publicOrigin + '/api/v2/';
+const renderOrigin = 'https://crypto-project-2026.onrender.com';
+const publicApi = renderOrigin + '/api/sepolia/';
 const proxyApi = '/api/sepolia/';
 const hash = content => 'sha256-' + createHash('sha256').update(content).digest('base64');
 const inline = html => html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
@@ -16,7 +17,7 @@ export function buildProPreview(sourceHtml, sourceModule) {
   if (!originalScript?.includes(publicApi) || !sourceModule.includes(publicApi) ||
       !html.includes("script-src '" + hash(originalScript) + "' '" + originalModuleHash + "'") ||
       !html.includes('src="./token-balances.mjs" integrity="' + originalModuleHash + '"') ||
-      !html.includes('connect-src ' + publicOrigin)) {
+      !html.includes('connect-src ' + publicOrigin + ' https://api.kraken.com ' + renderOrigin + ';')) {
     throw new Error('Expected the current Sepolia API URLs, CSP, and balance module integrity.');
   }
 
@@ -25,8 +26,9 @@ export function buildProPreview(sourceHtml, sourceModule) {
   const indexHtml = html.replace(originalScript, () => script)
     .replace(hash(originalScript), hash(script))
     .replaceAll(originalModuleHash, hash(balanceModule))
-    .replace('connect-src ' + publicOrigin, "connect-src 'self'");
-  if (indexHtml.includes(publicApi) || balanceModule.includes(publicApi)) {
+    .replace('connect-src ' + publicOrigin + ' https://api.kraken.com ' + renderOrigin + ';', "connect-src 'self' https://api.kraken.com;");
+  if (indexHtml.includes(publicApi) || balanceModule.includes(publicApi) ||
+      indexHtml.includes(publicOrigin + '/api/v2/') || balanceModule.includes(publicOrigin + '/api/v2/')) {
     throw new Error('The preview still contains a direct Sepolia API URL.');
   }
   return { indexHtml, balanceModule };
