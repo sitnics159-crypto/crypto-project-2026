@@ -72,7 +72,7 @@ jobs:
           checks = {
               "ERC-20 filter on initial request": "token-transfers?type=ERC-20",
               "ERC-20 filter on pagination": "params.set('type','ERC-20')",
-              "token metadata fallback": "/api/v2/tokens/",
+              "token metadata fallback": "/api/sepolia/tokens/",
               "self-transfer label": "Внутренний перевод",
               "event log index in CSV": "'log_index'",
               "CSV waits for decimals": "await Promise.all(rows.map",
