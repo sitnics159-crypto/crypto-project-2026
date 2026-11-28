@@ -21,3 +21,34 @@ assert.equal(context.weiToEth('1000000000000000000'),'1 ETH');
 assert.match(context.formatFeeDisplay('1'),/< \$0\.01/);
 assert.match(context.formatFeeDisplay('0'),/\$0\.00/);
 console.log('Financial regression assertions passed');
+
+const paginationStart=script.indexOf('const tokenTransferSeenPages=new Set();');
+const paginationEnd=script.indexOf('function filteredTokenTransfers(){');
+assert.ok(paginationStart>=0 && paginationEnd>paginationStart);
+const paginationContext=vm.createContext({URLSearchParams,tokenTransferLoadError:''});
+vm.runInContext(script.slice(paginationStart,paginationEnd),paginationContext);
+vm.runInContext(`
+const a={
+ transaction_hash:'0x'+'a'.repeat(64),
+ log_index:1,
+ token:{address_hash:'0x'+'b'.repeat(40)}
+};
+const b={...a,log_index:2};
+const c={...a,log_index:null};
+globalThis.results=[
+ mergeTokenTransfers([], [a,a]).length===1,
+ mergeTokenTransfers([a], [a,b]).length===2,
+ mergeTokenTransfers([], [c,c]).length===2,
+ mergeTokenTransfers([], [a,{...a,log_index:'01'}]).length===1,
+ safeTokenTransferNext({block_number:100})!==null,
+ safeTokenTransferNext({})===null
+];
+tokenTransferSeenPages.add(tokenTransferPageKey({block_number:100}));
+results.push(safeTokenTransferNext({block_number:100})===null);
+tokenTransferSeenPages.clear();
+results.push(safeTokenTransferNext({block_number:100})!==null);
+`,paginationContext);
+paginationContext.results.forEach((ok,i)=>{
+ assert.ok(ok,'ERC20 regression '+(i+1));
+});
+console.log('ERC20 pagination regression: 8/8 passed');
