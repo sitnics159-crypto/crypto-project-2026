@@ -1,4 +1,4 @@
-﻿import { LANGUAGES, normalizeLanguage, translate } from './i18n.mjs';
+import { LANGUAGES, normalizeLanguage, translate } from './i18n.mjs';
 
 export function mountLanguageSelector(root = document) {
   const select = root.createElement('select');
@@ -15,6 +15,21 @@ export function mountLanguageSelector(root = document) {
     const language = normalizeLanguage(value);
     select.value = language;
     select.setAttribute('aria-label', translate(language, 'language'));
+    root.documentElement.lang = language;
+    const labels = {
+      '#submit': 'checkTransaction',
+      '#address-submit': 'checkAddress',
+      '.net': 'testNetwork'
+    };
+
+    for (const [selector, key] of Object.entries(labels)) {
+      const element = root.querySelector(selector);
+      if (element) {
+        element.textContent =
+          (selector === '.net' ? '\u25cf ' : '') +
+          translate(language, key);
+      }
+    }
     return language;
   }
 
