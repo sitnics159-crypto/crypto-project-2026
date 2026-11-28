@@ -913,7 +913,7 @@ const path = require('node:path');
       window.__shareableAddressFetches = [];
       window.fetch = (url, options) => {
         const target = String(url);
-        const base = 'https://eth-sepolia.blockscout.com/api/v2/addresses/' + address;
+        const base = 'https://crypto-project-2026.onrender.com/api/sepolia/addresses/' + address;
         if (target === base || target === base + '/transactions' ||
             target.startsWith(base + '/token-transfers?')) {
           window.__shareableAddressFetches.push(target);
@@ -1194,7 +1194,7 @@ const path = require('node:path');
       };
       window.fetch = async (url, options = {}) => {
         const parsed = new URL(String(url));
-        const base = 'https://eth-sepolia.blockscout.com/api/v2/addresses/' + address;
+        const base = 'https://crypto-project-2026.onrender.com/api/sepolia/addresses/' + address;
         if (parsed.href === base) return response(200, {
           hash: address, coin_balance: '0', is_contract: false,
           is_scam: false, has_tokens: true, has_token_transfers: true
