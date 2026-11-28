@@ -198,3 +198,82 @@ These results confirm the corresponding CI jobs and deployment action succeeded.
 - Documentation-only branch: `docs/checkpoint-post-pr62-2026-11-24`.
 - Scope: refresh this checkpoint from verified GitHub state; no application code, workflows, or deployment settings changed.
 - Next action: continue the MVP 1.0 release-readiness audit, beginning with manual review of the deployed experience and its failure/recovery states.
+
+---
+
+## Authoritative state refresh — 2026-11-24, after PR #66
+
+This section supersedes earlier checkpoint snapshots wherever they conflict. GitHub state was refreshed from the live repository after PR #66 merged.
+
+### Current repository state
+
+- Current `main` SHA: `05e54389ab1b1796e65e2797b6c84f6578a6cffb`.
+- Latest main commit: `Keep address results available when activity endpoints fail (#66)`.
+- Published site: https://sitnics159-crypto.github.io/crypto-project-2026/
+- PR #60, `Refresh development checkpoint after PR #59`, remains open and intentionally untouched. Its branch `docs/checkpoint-after-pr59-2026-11-24` is now diverged from current main: 2 commits ahead and 6 commits behind. Its content is superseded by later checkpoint refreshes; do not merge it as-is.
+- PR #61, `Report details for incomplete axe accessibility checks`, MERGED — `2a44e1658a43b89c9c3544b61db923e6766568f4`.
+- PR #62, `Test inert rendering of untrusted Blockscout data`, MERGED — `66515185728186c80ad4227faf02066967a0ebf2`.
+- PR #63, `Refresh development checkpoint after PR #62`, MERGED — `3b3bbad1dc725cbbfd3441a2b9c32c218f446493`.
+- PR #64, `Test address lookup recovery after API failures`, MERGED — `138462532a8101a2dab34493f95e1ca293fa3f51`.
+- PR #65, `Identify stale market values after refresh failures`, MERGED — `c9b169118369fc3e9c330786281f7e230e940718`.
+- PR #66, `Keep address results available when activity endpoints fail`, MERGED — `05e54389ab1b1796e65e2797b6c84f6578a6cffb`.
+- Issue #35 remains CLOSED; deterministic offline tests and live integration smoke checks are already separated. Do not repeat or reopen this task.
+
+### Changes delivered by PRs #64–#66
+
+- PR #64 added deterministic regression coverage for address lookup recovery after HTTP 5xx responses. It verifies that loading state clears, the submit button is restored, and a successful retry replaces the error state.
+- PR #65 preserves the last successful BTC/ETH market snapshot after refresh failures and clearly labels the displayed values as potentially stale, including the last successful timestamp. Regression coverage includes HTTP 429, HTTP 5xx, and timeout failures.
+- PR #66 keeps the address overview available when transaction activity or ERC-20 activity endpoints fail independently. A successfully loaded activity section remains visible while the failed section shows a localized status; the UI does not present partial activity as complete.
+- These changes improve resilience but do not replace a full manual review of API failure/recovery behavior.
+
+### CI and GitHub Pages on current main
+
+All four latest push checks completed successfully on exact main SHA `05e54389ab1b1796e65e2797b6c84f6578a6cffb`:
+
+- Validate static site — SUCCESS: https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45426840485
+- Deterministic offline tests — SUCCESS: https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45426840666
+- Browser smoke test — SUCCESS: https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45426840629
+- GitHub Pages deployment — SUCCESS: https://github.com/sitnics159-crypto/crypto-project-2026/actions/runs/45426840440
+
+These results verify the listed automated jobs and deployment action. They do not establish that a human has visually reviewed the live site or completed a full security assessment.
+
+### Current open work and release-readiness queue
+
+1. Manually review the deployed site at mobile width 390px and desktop widths. Inspect transaction/address lookup, address activity sections, ERC-20 filters/pagination/CSV, and BTC/ETH market panels.
+2. Verify the visible stale-market notice and partial-address-activity error states in the browser, including recovery after retry.
+3. Complete focused keyboard and assistive-technology review; axe has one `color-contrast` incomplete item caused by gradient backgrounds. This is not a confirmed violation. Previously calculated contrast ratios for the reported header/intro text passed 4.5:1, but that targeted calculation is not a complete manual accessibility audit.
+4. Continue the focused security review of external links, DOM sinks, API-derived content, dependency/workflow permissions, and hosting headers. Do not describe this as a penetration test unless one is actually performed.
+5. Preserve the static, read-only MVP boundary: no wallet connection, private keys, seed phrases, signing, or transaction submission.
+6. Select a project license only after the owner chooses one; do not add a license by assumption.
+
+### Session record — post PR #66
+
+- Date: 2026-11-24.
+- Verified base main SHA: `05e54389ab1b1796e65e2797b6c84f6578a6cffb`.
+- Documentation-only branch: `docs/checkpoint-post-pr66-2026-11-24`.
+- Scope: update this checkpoint with merged PRs #63–#66, current main SHA, CI results, and remaining release-readiness work. No application code, workflow configuration, deployment settings, or main-branch changes are included.
+- PR #60 was not modified or closed; its disposition remains separate.
+- Next action: complete the manual mobile/desktop visual review and verify the new API failure/recovery UI states.
+
+
+### Focused source and CI security review — 2026-11-24
+
+Reviewed the current `main` source at `05e54389ab1b1796e65e2797b6c84f6578a6cffb`, including `index.html`, the four GitHub Actions workflows, `SECURITY.md`, and the deterministic regression tests.
+
+Confirmed in the inspected source:
+
+- No occurrences of `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write`, `eval()`, or `new Function()` were found in `index.html`.
+- API-derived labels, hashes, token names, method strings, status messages, and rendered values are inserted through `textContent` or created as DOM nodes; the code does not use API-provided strings as HTML markup.
+- External links opened in a new tab use `rel="noopener noreferrer"`. Dynamic Blockscout links use fixed HTTPS origins and URL-encoded identifiers; the CSV download uses a locally created Blob URL.
+- Browser data requests in the inspected application code target the fixed Blockscout Sepolia and Kraken public API origins. No wallet connection, signing, transaction submission, private-key, or seed-phrase flow was found in the inspected page.
+- The three test workflows declare `contents: read`; the separate Pages deployment workflow has the additional Pages/id-token permissions required for deployment. Actions are pinned to full commit SHAs in the inspected workflows.
+- The offline regression suite contains a malicious-markup fixture for Blockscout-provided transaction, method, and token strings and asserts that no injected elements or script execution occur. This is targeted regression evidence, not proof of complete XSS immunity.
+
+Remaining security limitations and follow-up:
+
+- This was a focused static source/configuration review, not a penetration test, dependency audit, or independent security assessment.
+- GitHub Pages response headers and any effective Content-Security-Policy/security headers have not yet been verified from the deployed response. Treat hosting-header review as open.
+- Dependency reproducibility and transitive dependency risk were not fully assessed; the CI workflows install pinned direct Playwright/axe versions without a committed lockfile.
+- Continue manual review of deployed behavior and hosting configuration before declaring release readiness.
+
+Scope of this checkpoint update: documentation only. No application code, workflow, Pages configuration, repository settings, or `main` changes.
