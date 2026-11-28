@@ -1,0 +1,132 @@
+{
+  "languages": [
+    "ru",
+    "en",
+    "es",
+    "de",
+    "fr",
+    "ro"
+  ],
+  "labels": {
+    "transactionHash": [
+      "Хеш транзакции",
+      "Transaction hash",
+      "Hash de transacción",
+      "Transaktionshash",
+      "Hash de transaction",
+      "Hashul tranzacției"
+    ],
+    "publicAddress": [
+      "Публичный адрес",
+      "Public address",
+      "Dirección pública",
+      "Öffentliche Adresse",
+      "Adresse publique",
+      "Adresă publică"
+    ],
+    "sender": [
+      "Отправитель",
+      "Sender",
+      "Remitente",
+      "Absender",
+      "Expéditeur",
+      "Expeditor"
+    ],
+    "recipient": [
+      "Получатель",
+      "Recipient",
+      "Destinatario",
+      "Empfänger",
+      "Destinataire",
+      "Destinatar"
+    ],
+    "amount": [
+      "Сумма",
+      "Amount",
+      "Importe",
+      "Betrag",
+      "Montant",
+      "Sumă"
+    ],
+    "fee": [
+      "Комиссия сети",
+      "Network fee",
+      "Comisión de red",
+      "Netzwerkgebühr",
+      "Frais de réseau",
+      "Taxă de rețea"
+    ],
+    "block": [
+      "Блок",
+      "Block",
+      "Bloque",
+      "Block",
+      "Bloc",
+      "Bloc"
+    ],
+    "market": [
+      "Рыночная сводка",
+      "Market overview",
+      "Resumen del mercado",
+      "Marktübersicht",
+      "Aperçu du marché",
+      "Rezumatul pieței"
+    ],
+    "refresh": [
+      "Обновить",
+      "Refresh",
+      "Actualizar",
+      "Aktualisieren",
+      "Actualiser",
+      "Actualizează"
+    ],
+    "all": [
+      "Все",
+      "All",
+      "Todos",
+      "Alle",
+      "Tous",
+      "Toate"
+    ],
+    "incoming": [
+      "Входящие",
+      "Incoming",
+      "Entrantes",
+      "Eingehend",
+      "Entrants",
+      "Primite"
+    ],
+    "outgoing": [
+      "Исходящие",
+      "Outgoing",
+      "Salientes",
+      "Ausgehend",
+      "Sortants",
+      "Trimise"
+    ],
+    "report": [
+      "Сформировать аналитический отчёт",
+      "Generate analytical report",
+      "Generar informe analítico",
+      "Analysebericht erstellen",
+      "Générer un rapport analytique",
+      "Generează raportul analitic"
+    ],
+    "pdf": [
+      "Сохранить PDF",
+      "Save PDF",
+      "Guardar PDF",
+      "PDF speichern",
+      "Enregistrer le PDF",
+      "Salvează PDF"
+    ],
+    "moreTransfers": [
+      "Показать ещё переводы",
+      "Show more transfers",
+      "Mostrar más transferencias",
+      "Weitere Transfers anzeigen",
+      "Afficher plus de transferts",
+      "Afișează mai multe transferuri"
+    ]
+  }
+}
