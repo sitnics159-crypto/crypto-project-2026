@@ -8,6 +8,21 @@ const address = '0x' + 'a'.repeat(40);
 const hash = '0x' + 'b'.repeat(64);
 const request = (path, method = 'GET') => new Request('https://preview.example' + path, { method });
 
+test('ignores known browser tracking parameters without forwarding them upstream', async () => {
+  const hash = '0x' + 'b'.repeat(64);
+  let requestedUrl;
+  const handle = createBlockscoutHandler({ apiKey: 'mock-key', fetchUpstream: async url => {
+    requestedUrl = url;
+    return Response.json({ hash });
+  } });
+  const response = await handle(request('/transactions/' + hash + '?utm_source=chatgpt.com&utm_medium=referral'));
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { hash });
+  assert.equal(requestedUrl.searchParams.has('utm_source'), false);
+  assert.equal(requestedUrl.searchParams.has('utm_medium'), false);
+  assert.equal(requestedUrl.searchParams.get('apikey'), 'mock-key');
+});
+
 test('routes allowlisted Sepolia read operations to the fixed provider and authenticates upstream', async () => {
   const paths = ['/transactions/' + hash, '/transactions/' + hash + '/token-transfers?type=ERC-20',
     '/transactions/' + hash + '/logs', '/addresses/' + address, '/addresses/' + address + '/transactions?index=1',
