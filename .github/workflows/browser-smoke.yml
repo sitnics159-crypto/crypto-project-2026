@@ -152,6 +152,16 @@ jobs:
           (async () => {
             const browser = await chromium.launch({ headless: true });
             const page = await browser.newPage({ acceptDownloads: true });
+            if (process.env.TEST_PUBLISHED_PAGES !== 'true') {
+              // The production API intentionally allows browser CORS only from GitHub Pages.
+              // For an unpublished localhost PR preview, proxy real API responses through
+              // Playwright's API request context; the dedicated CORS regression verifies
+              // that the published Pages origin remains the only browser origin allowed.
+              await page.route('https://crypto-project-2026.onrender.com/api/sepolia/**', async route => {
+                const upstream = await route.fetch();
+                await route.fulfill({ response: upstream });
+              });
+            }
             const apiResponses = [];
             page.on('response', response => {
               if (response.url().includes('crypto-project-2026.onrender.com/api/sepolia/') ||
