@@ -34,9 +34,13 @@ test('API request uses Sepolia and omits credentials',async()=>{const address='0
 test('API rejects invalid address without request',async()=>{await assert.rejects(fetchTokenBalances('invalid',{fetcher:()=>assert.fail('unexpected request')}),TypeError);});
 test('HTTP 429 preserves Retry-After and explains rate limiting', async () => {
   const address = '0x' + 'b'.repeat(40);
-  const error = await assert.rejects(fetchTokenBalances(address, {
-    fetcher: async () => ({ ok: false, status: 429, headers: { get: name => name === 'retry-after' ? '2' : null } })
-  }));
+  let error;
+  try {
+    await fetchTokenBalances(address, {
+      fetcher: async () => ({ ok: false, status: 429, headers: { get: name => name === 'retry-after' ? '2' : null } })
+    });
+  } catch (caught) { error = caught; }
+  assert.ok(error, 'Expected HTTP 429 to reject');
   assert.ok(error instanceof TokenBalanceHttpError);
   assert.equal(error.status, 429);
   assert.equal(error.retryAfter, 2);
@@ -45,12 +49,13 @@ test('HTTP 429 preserves Retry-After and explains rate limiting', async () => {
 });
 test('HTTP 503 and 502 have distinct temporary outage messages', async () => {
   const address = '0x' + 'b'.repeat(40);
-  const unavailable = await assert.rejects(fetchTokenBalances(address, {
-    fetcher: async () => ({ ok: false, status: 503 })
-  }));
-  const upstream = await assert.rejects(fetchTokenBalances(address, {
-    fetcher: async () => ({ ok: false, status: 502 })
-  }));
+  let unavailable, upstream;
+  try { await fetchTokenBalances(address, { fetcher: async () => ({ ok: false, status: 503 }) }); }
+  catch (error) { unavailable = error; }
+  try { await fetchTokenBalances(address, { fetcher: async () => ({ ok: false, status: 502 }) }); }
+  catch (error) { upstream = error; }
+  assert.ok(unavailable, 'Expected HTTP 503 to reject');
+  assert.ok(upstream, 'Expected HTTP 502 to reject');
   assert.equal(unavailable.status, 503);
   assert.equal(upstream.status, 502);
   assert.match(tokenBalanceErrorMessage(unavailable), /временно недоступен/);
