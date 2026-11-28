@@ -35,6 +35,7 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/pages-site"
           install -m 644 index.html "${RUNNER_TEMP}/pages-site/index.html"
           install -m 644 token-balances.mjs "${RUNNER_TEMP}/pages-site/token-balances.mjs"
+          install -m 644 i18n-bundle.mjs "${RUNNER_TEMP}/pages-site/i18n-bundle.mjs"
       - name: Upload artifact
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
@@ -81,7 +82,7 @@ jobs:
           actual_dir="$(mktemp -d)"
           for attempt in {1..10}; do
             matched=true
-            for file in index.html token-balances.mjs; do
+            for file in index.html token-balances.mjs i18n-bundle.mjs; do
               if ! curl --fail --silent --show-error --max-time 15 \
                 -o "$actual_dir/$file" \
                 "${PAGE_URL%/}/$file?verify=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-$attempt" ||
@@ -91,7 +92,7 @@ jobs:
               fi
             done
             if [[ "$matched" == true ]]; then
-              echo "Both published files match the deployment package byte for byte."
+              echo "All published files match the deployment package byte for byte."
               exit 0
             fi
             if [[ "$attempt" -lt 10 ]]; then sleep 6; fi

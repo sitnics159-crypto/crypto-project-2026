@@ -68,11 +68,19 @@ const path = require('node:path');
       return [name, values.join(' ')];
     }));
     const scriptSources = cspDirectives.get('script-src') || '';
-    const moduleHash = 'sha256-' + crypto.createHash('sha256')
-      .update(fs.readFileSync(path.join(__dirname, '..', 'token-balances.mjs'))).digest('base64');
-    if (!sourceHtml.includes('src="./token-balances.mjs" integrity="' + moduleHash + '"') ||
-        scriptSources !== expectedScriptHash + " '" + moduleHash + "'") {
-      throw new Error('CSP and integrity must authorize only the current application scripts');
+    const moduleNames = ['token-balances.mjs', 'i18n-bundle.mjs'];
+    const moduleHashes = moduleNames.map(name => {
+      const hash = 'sha256-' + crypto.createHash('sha256')
+        .update(fs.readFileSync(path.join(__dirname, '..', name)))
+        .digest('base64');
+      if (!sourceHtml.includes('src="./' + name + '" integrity="' + hash + '"')) {
+        throw new Error('Module integrity mismatch: ' + name);
+      }
+      return "'" + hash + "'";
+    });
+    const expectedSources = [expectedScriptHash, ...moduleHashes].join(' ');
+    if (scriptSources !== expectedSources) {
+      throw new Error('CSP must authorize exactly the approved application scripts');
     }
     const connectSources = cspDirectives.get('connect-src') || '';
     for (const [directive, expected] of [
@@ -107,17 +115,46 @@ const path = require('node:path');
         !mobileAccessibility.focusRule) {
       throw new Error('Mobile input/focus accessibility regression: ' + JSON.stringify(mobileAccessibility));
     }
-    await page.keyboard.press('Tab');
-    const keyboardFocus = await page.evaluate(() => ({
-      id: document.activeElement?.id || '',
-      outlineStyle: getComputedStyle(document.activeElement).outlineStyle,
-      outlineWidth: getComputedStyle(document.activeElement).outlineWidth
-    }));
-    if (keyboardFocus.id !== 'tx-hash' ||
-        keyboardFocus.outlineStyle === 'none' ||
-        keyboardFocus.outlineWidth === '0px') {
-      throw new Error('Visible keyboard focus regression: ' + JSON.stringify(keyboardFocus));
+    let keyboardFocus;
+    for (const expectedId of ['language-select', 'tx-hash']) {
+      await page.keyboard.press('Tab');
+      keyboardFocus = await page.evaluate(() => ({
+        id: document.activeElement?.id || '',
+        outlineStyle: getComputedStyle(document.activeElement).outlineStyle,
+        outlineWidth: getComputedStyle(document.activeElement).outlineWidth
+      }));
+      if (keyboardFocus.id !== expectedId ||
+          keyboardFocus.outlineStyle !== 'solid' ||
+          parseFloat(keyboardFocus.outlineWidth) < 3) {
+        throw new Error('Visible keyboard focus regression: ' + JSON.stringify(keyboardFocus));
+      }
     }
+    const languageSelector = page.locator('#language-select');
+    const languageLabels = {
+      ru: '\u042f\u0437\u044b\u043a',
+      en: 'Language',
+      es: 'Idioma',
+      de: 'Sprache',
+      fr: 'Langue',
+      ro: 'Limb\u0103'
+    };
+
+    if (await languageSelector.locator('option').count() !== 6) {
+      throw new Error('Language option count regression');
+    }
+
+    for (const [language, label] of Object.entries(languageLabels)) {
+      await languageSelector.selectOption(language);
+      if (await languageSelector.inputValue() !== language ||
+          await languageSelector.getAttribute('aria-label') !== label) {
+        throw new Error('Language selector regression: ' + language);
+      }
+    }
+
+    await languageSelector.selectOption('ru');
+    await page.locator('#tx-hash').focus();
+    console.log('All six language selector checks passed');
+
     const tabbable = await page.locator('a[href],button:not([disabled]),input:not([disabled])').evaluateAll(elements =>
       elements.filter(element => {
         const style = getComputedStyle(element);

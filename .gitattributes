@@ -1,1 +1,6 @@
 token-balances.mjs text eol=lf
+i18n.mjs text eol=lf
+i18n-ui.mjs text eol=lf
+i18n-bundle.mjs text eol=lf
+index.html text eol=lf
+tests/offline-regression.cjs text eol=lf
