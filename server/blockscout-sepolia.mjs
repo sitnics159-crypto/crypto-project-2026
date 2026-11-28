@@ -1,5 +1,7 @@
 const upstreamBase = 'https://api.blockscout.com/11155111/api/v2';
 const address = '0x[0-9a-fA-F]{40}';
+const trackingParameters = new Set(['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content']);
+
 const routes = [
   { pattern: new RegExp('^/transactions/0x[0-9a-fA-F]{64}$'), query: [] },
   { pattern: new RegExp('^/transactions/0x[0-9a-fA-F]{64}/token-transfers$'), query: ['type'] },
@@ -38,6 +40,7 @@ export function createBlockscoutHandler({ apiKey, fetchUpstream = fetch, now = D
     const upstream = new URL(upstreamBase + input.pathname);
 
     for (const [name, value] of input.searchParams) {
+      if (trackingParameters.has(name)) continue;
       if (upstream.searchParams.has(name) || !route.query.includes(name) ||
           !validParameter(name, value)) {
         return failure(400, 'Invalid request parameter');
