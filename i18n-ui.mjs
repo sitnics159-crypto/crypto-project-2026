@@ -33,7 +33,20 @@ export function mountLanguageSelector(root = document) {
     return language;
   }
 
-  select.addEventListener('change', () => apply(select.value));
-  apply('ru');
+  const storageKey = 'crypto-project-language';
+
+  select.addEventListener('change', () => {
+    const language = apply(select.value);
+    try {
+      root.defaultView.localStorage.setItem(storageKey, language);
+    } catch {}
+  });
+
+  let savedLanguage = 'ru';
+  try {
+    savedLanguage = root.defaultView.localStorage.getItem(storageKey);
+  } catch {}
+
+  apply(savedLanguage);
   return select;
 }

@@ -151,6 +151,55 @@ const path = require('node:path');
       }
     }
 
+    for (const language of Object.keys(languageLabels)) {
+      await languageSelector.selectOption(language);
+      await page.reload();
+      await languageSelector.waitFor();
+
+      if (await languageSelector.inputValue() !== language ||
+          await page.locator('html').getAttribute('lang') !== language) {
+        throw new Error('Language persistence regression: ' + language);
+      }
+    }
+
+    await page.evaluate(() => {
+      localStorage.setItem('crypto-project-language', 'invalid');
+    });
+    await page.reload();
+    await languageSelector.waitFor();
+
+    if (await languageSelector.inputValue() !== 'ru') {
+      throw new Error('Invalid language fallback regression');
+    }
+
+    const blockedContext = await page.context().browser().newContext();
+    const blockedPage = await blockedContext.newPage();
+    try {
+      await blockedPage.addInitScript(() => {
+        Object.defineProperty(window, 'localStorage', {
+          get() { throw new Error('Storage blocked'); }
+        });
+      });
+
+      await blockedPage.goto(page.url());
+      const blockedSelector = blockedPage.locator('#language-select');
+      await blockedSelector.waitFor();
+
+      if (await blockedSelector.inputValue() !== 'ru') {
+        throw new Error('Blocked storage default regression');
+      }
+
+      await blockedSelector.selectOption('en');
+
+      if (await blockedPage.locator('html').getAttribute('lang') !== 'en') {
+        throw new Error('Blocked storage switching regression');
+      }
+    } finally {
+      await blockedContext.close();
+    }
+
+    console.log('All eight language persistence checks passed');
+
     await languageSelector.selectOption('ru');
     await page.locator('#tx-hash').focus();
     console.log('All six language selector checks passed');
