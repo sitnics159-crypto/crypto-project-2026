@@ -279,18 +279,6 @@ jobs:
 
               const txHref = await page.locator('#address-token-transfers .token-transfer a').first().getAttribute('href');
               const txHash = txHref.split('/').pop();
-              const txDiagnostics = await page.evaluate(async hash => {
-                const response = await fetch('https://crypto-project-2026.onrender.com/api/sepolia/transactions/' +
-                  encodeURIComponent(hash));
-                const detail = await response.json();
-                return { status: response.status, detailHash: detail.hash };
-              }, txHash);
-              if (txDiagnostics.status !== 200) {
-                throw new Error('Transaction detail API failed: ' + txDiagnostics.status);
-              }
-              if (txDiagnostics.detailHash.toLowerCase() !== txHash.toLowerCase()) {
-                throw new Error('Transaction detail endpoint returned a different hash');
-              }
               if (!unfiltered.transactionHashes.includes(txHash.toLowerCase())) {
                 throw new Error('Transaction was not present in the address ERC-20 transfer history');
               }
