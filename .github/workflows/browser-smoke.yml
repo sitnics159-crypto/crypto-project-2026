@@ -276,7 +276,7 @@ jobs:
               const txHref = await page.locator('#address-token-transfers .token-transfer a').first().getAttribute('href');
               const txHash = txHref.split('/').pop();
               const txDiagnostics = await page.evaluate(async hash => {
-                const base = 'https://eth-sepolia.blockscout.com/api/v2/transactions/' + encodeURIComponent(hash);
+                const base = 'https://crypto-project-2026.onrender.com/api/sepolia/transactions/' + encodeURIComponent(hash);
                 const [detailResponse, transfersResponse, logsResponse] = await Promise.all([
                   fetch(base),
                   fetch(base + '/token-transfers?type=ERC-20'),
