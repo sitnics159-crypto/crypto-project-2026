@@ -8,8 +8,9 @@ const address = '0x' + 'a'.repeat(40);
 const hash = '0x' + 'b'.repeat(64);
 const request = (path, method = 'GET') => new Request('https://preview.example' + path, { method });
 
-test('routes five Sepolia operations to the fixed provider and authenticates upstream', async () => {
-  const paths = ['/transactions/' + hash, '/addresses/' + address, '/addresses/' + address + '/transactions?index=1',
+test('routes allowlisted Sepolia read operations to the fixed provider and authenticates upstream', async () => {
+  const paths = ['/transactions/' + hash, '/transactions/' + hash + '/token-transfers?type=ERC-20',
+    '/transactions/' + hash + '/logs', '/addresses/' + address, '/addresses/' + address + '/transactions?index=1',
     '/addresses/' + address + '/token-transfers?type=ERC-20&filter=from&block_number=100', '/tokens/' + address];
   const calls = [];
   const handle = createBlockscoutHandler({ apiKey: 'mock-key', fetchUpstream: async (url, options) => {
@@ -24,10 +25,13 @@ test('routes five Sepolia operations to the fixed provider and authenticates ups
     assert.equal(response.status, 200);
     assert.deepEqual(await response.json(), { ok: true });
   }
-  assert.equal(calls.length, 5);
+  assert.equal(calls.length, 7);
   assert.ok(calls.every(url => url.pathname.startsWith('/11155111/api/v2/')));
-  assert.equal(calls[3].searchParams.get('type'), 'ERC-20');
-  assert.equal(calls[3].searchParams.get('filter'), 'from');
+  assert.equal(calls[1].pathname, '/11155111/api/v2/transactions/' + hash + '/token-transfers');
+  assert.equal(calls[1].searchParams.get('type'), 'ERC-20');
+  assert.equal(calls[2].pathname, '/11155111/api/v2/transactions/' + hash + '/logs');
+  assert.equal(calls[5].searchParams.get('type'), 'ERC-20');
+  assert.equal(calls[5].searchParams.get('filter'), 'from');
 });
 
 test('forwards token balances to Sepolia without accepting client query parameters', async () => {
@@ -57,6 +61,8 @@ test('rejects invalid methods, paths and query parameters before reaching the pr
   const handle = createBlockscoutHandler({ apiKey: 'mock-key', fetchUpstream: async () => { calls++; } });
   assert.equal((await handle(request('/tokens/' + address, 'POST'))).status, 405);
   assert.equal((await handle(request('/addresses/garbage'))).status, 404);
+  assert.equal((await handle(request('/transactions/' + hash + '/unknown'))).status, 404);
+  assert.equal((await handle(request('/transactions/' + hash + '/token-transfers?type=ERC-721'))).status, 400);
   assert.equal((await handle(request('/tokens/' + address + '?apikey=client'))).status, 400);
   assert.equal((await handle(request('/addresses/' + address + '/token-transfers?filter=wrong'))).status, 400);
   assert.equal((await handle(request('/addresses/' + address + '/transactions?index=1&index=2'))).status, 400);
