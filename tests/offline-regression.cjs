@@ -1051,6 +1051,81 @@ const path = require('node:path');
       throw new Error('CSV all-transfers export regression failed: ' + JSON.stringify(allCsv));
     }
 
+
+    await page.evaluate(async () => {
+      const originalFetch = window.fetch;
+      const saved = {
+        items: tokenTransferItems,
+        next: tokenTransferNext,
+        visible: tokenTransferVisible,
+        error: tokenTransferLoadError,
+        pages: [...tokenTransferSeenPages]
+      };
+      const check = (ok, message) => {
+        if (!ok) throw new Error(message);
+      };
+      try {
+        const item = {
+          transaction_hash: '0x' + 'a'.repeat(64),
+          log_index: 0,
+          token_type: 'ERC-20',
+          from: {hash: '0x' + 'b'.repeat(40)},
+          to: {hash: tokenTransferAddress},
+          token: {
+            address_hash: '0x' + 'c'.repeat(40),
+            symbol: 'TEST'
+          },
+          total: {value: '1', decimals: '0'}
+        };
+        tokenTransferItems = mergeTokenTransfers([], [item,item]);
+        check(tokenTransferItems.length === 1, 'Duplicate transfer');
+        tokenTransferSeenPages.clear();
+        tokenTransferNext = {block_number: 100};
+        tokenTransferVisible = 5;
+        tokenTransferLoadError = '';
+        window.fetch = async () => Response.json({
+          items: [item, ...Array.from({length: 11}, (_,i) =>
+            ({...item, log_index: i+1}))],
+          next_page_params: {block_number: 100}
+        });
+        await loadMoreTokenTransfers();
+        check(tokenTransferNext === null, 'Repeated cursor accepted');
+        check(tokenTransferItems.length === 12, 'Incorrect merge');
+        check(tokenTransferLoadError.length > 0, 'Missing warning');
+        const warning = tokenTransferLoadError;
+        await loadMoreTokenTransfers();
+        check(tokenTransferLoadError === warning, 'Warning lost');
+        document.querySelector('#insight-create').click();
+        check(document.querySelector('#insight-report').hidden,
+          'Incomplete report generated');
+        check(document.querySelector('#insight-print').disabled,
+          'Incomplete report printing enabled');
+        window.fetch = async () => Response.json({
+          items: [item,item],
+          next_page_params: null
+        });
+        await loadTokenTransfersForFilter(tokenTransferFilter);
+        check(!tokenTransferLoadError, 'Recovery warning remains');
+        check(tokenTransferItems.length === 1, 'Recovery duplicate');
+        check(tokenTransferSeenPages.size === 0, 'Cursor reset failed');
+        document.querySelector('#insight-create').click();
+        check(!document.querySelector('#insight-report').hidden,
+          'Report recovery failed');
+        clearInsightReport();
+
+      } finally {
+        window.fetch = originalFetch;
+        tokenTransferItems = saved.items;
+        tokenTransferNext = saved.next;
+        tokenTransferVisible = saved.visible;
+        tokenTransferLoadError = saved.error;
+        tokenTransferSeenPages.clear();
+        saved.pages.forEach(key => tokenTransferSeenPages.add(key));
+        renderTokenTransferList();
+      }
+    });
+    console.log('ERC20 repeated cursor and report safety passed');
+
     await page.locator('#insight-create').click();
     if (!(await page.locator('#insight-report').isVisible()) ||
         !(await page.locator('#insight-report').innerText()).includes('Загружено записей: 2') ||
